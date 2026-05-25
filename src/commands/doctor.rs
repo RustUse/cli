@@ -60,9 +60,5 @@ pub fn run(output: Output) -> Result<()> {
 }
 
 fn status_label(present: bool) -> &'static str {
-    if present {
-        "found"
-    } else {
-        "missing"
-    }
+    if present { "found" } else { "missing" }
 }

@@ -18,6 +18,34 @@ Run `rustuse init` when you want managed RustUse project state. The command crea
 
 Use `rustuse init --copy-first` to make copy mode the default in generated project configuration. Use `rustuse init --dry-run` to preview the files and directories without writing them.
 
+## Cargo subcommand
+
+Installing `rustuse-cli` provides two binaries:
+
+- `rustuse`
+- `cargo-rustuse`
+
+The second binary lets Cargo run RustUse as:
+
+```bash
+cargo rustuse <command>
+```
+
+These are equivalent:
+
+```bash
+rustuse search geometry
+cargo rustuse search geometry
+
+rustuse add use-geometry
+cargo rustuse add use-geometry
+
+rustuse copy use-slug
+cargo rustuse copy use-slug
+```
+
+`cargo rustuse` is a Cargo-native entry point, not a separate package manager. It uses the same RustUse CLI implementation.
+
 ## Examples
 
 ```bash

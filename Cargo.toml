@@ -4,10 +4,19 @@ version = "0.1.0"
 edition = "2024"
 description = "RustUse command-line adoption helper."
 license = "MIT OR Apache-2.0"
+autobins = false
+
+[lib]
+name = "rustuse_cli"
+path = "src/lib.rs"
 
 [[bin]]
 name = "rustuse"
-path = "src/main.rs"
+path = "src/bin/rustuse.rs"
+
+[[bin]]
+name = "cargo-rustuse"
+path = "src/bin/cargo-rustuse.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
