@@ -1,9 +1,24 @@
 use anyhow::{Context, Result};
+use clap::Args;
 
-use crate::cli::DocsArgs;
+use crate::cli::NamedCommandArgs;
 use crate::output::Output;
 
 use super::entry_for;
+
+#[derive(Debug, Args)]
+pub struct DocsArgs {
+    #[command(flatten)]
+    pub target: NamedCommandArgs,
+
+    /// Print API RustDocs URL.
+    #[arg(long, conflicts_with = "workspace")]
+    pub api: bool,
+
+    /// Print workspace RustDocs URL.
+    #[arg(long, conflicts_with = "api")]
+    pub workspace: bool,
+}
 
 pub fn run(args: DocsArgs, output: Output) -> Result<()> {
     let entry = entry_for(&args.target.name)?;

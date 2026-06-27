@@ -1,9 +1,38 @@
 use anyhow::{Context, Result, bail};
+use clap::Args;
+// use std::path::PathBuf;
 
-use crate::cli::InitArgs;
+// use crate::cli::InitArgs;
 use crate::config::{self, RustUseConfig};
 use crate::output::Output;
 use crate::project::{self, CONFIG_FILE};
+
+#[derive(Debug, Args)]
+pub struct InitArgs {
+    /// Prefer copy-mode defaults in rustuse.toml.
+    #[arg(long)]
+    pub copy_first: bool,
+
+    /// Prefer Cargo-mode defaults in rustuse.toml.
+    #[arg(long)]
+    pub cargo_first: bool,
+
+    /// Accept the v0.1 defaults without prompting.
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Show what would be created without writing files.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Override the configured copy root.
+    #[arg(long, value_name = "PATH")]
+    pub copy_root: Option<String>,
+
+    /// Override the configured test root.
+    #[arg(long, value_name = "PATH")]
+    pub test_root: Option<String>,
+}
 
 pub fn run(args: InitArgs, output: Output) -> Result<()> {
     if args.copy_first && args.cargo_first {

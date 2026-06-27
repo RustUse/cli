@@ -1,11 +1,33 @@
 use anyhow::{Result, bail, ensure};
+use clap::Args;
 
-use crate::cli::CopyArgs;
+// use crate::commands::copy::CopyArgs;
+use crate::cli::NamedCommandArgs;
 use crate::index::DistributionMode;
 use crate::output::Output;
 use crate::project;
 
 use super::{entry_for, tests_label};
+
+#[derive(Debug, Args)]
+pub struct CopyArgs {
+    #[command(flatten)]
+    pub target: NamedCommandArgs,
+
+    #[command(flatten)]
+    pub options: CopyOptions,
+
+    /// Track the planned copied primitive in rustuse.toml; requires rustuse init first.
+    #[arg(long)]
+    pub track: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct CopyOptions {
+    /// Include tests when planning copy mode.
+    #[arg(long)]
+    pub with_tests: bool,
+}
 
 pub fn run(args: CopyArgs, output: Output) -> Result<()> {
     let entry = entry_for(&args.target.name)?;

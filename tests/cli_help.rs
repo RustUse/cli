@@ -99,6 +99,72 @@ impl Drop for TempProject {
 }
 
 #[test]
+fn dev_facade_run_reports_basic_facade_shape() {
+    let project = TempProject::new("dev-facade-run");
+
+    fs::write(project.path().join("Cargo.toml"), "[workspace]\n")
+        .expect("failed to write Cargo.toml");
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example"))
+        .expect("failed to create crate directory");
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "run", "."],
+        project.path(),
+    );
+
+    assert!(output.contains("RustUse dev facade run"));
+    assert!(output.contains("git: yes"));
+    assert!(output.contains("Cargo.toml: yes"));
+    assert!(output.contains("crates/: yes"));
+    assert!(output.contains("crate manifests: 1"));
+    assert!(output.contains("status: ok"));
+}
+
+#[test]
+fn dev_root_scan_reports_basic_facade_inventory() {
+    let project = TempProject::new("dev-root-scan");
+    let facade_root = project.path().join("use-example");
+
+    fs::create_dir_all(facade_root.join(".git")).expect("failed to create facade .git directory");
+    fs::create_dir_all(facade_root.join("crates/use-example"))
+        .expect("failed to create facade crate directory");
+
+    fs::write(
+        facade_root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    )
+    .expect("failed to write facade workspace Cargo.toml");
+
+    fs::write(
+        facade_root.join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write facade package Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "root", "scan", "."],
+        project.path(),
+    );
+
+    assert!(output.contains("RustUse dev root scan - root:"));
+    assert!(output.contains("found 1 use-* directories"));
+    assert!(output.contains("facade repos with .git: 1"));
+    assert!(output.contains("facades missing .git: 0"));
+    assert!(output.contains("child crates detected: 1"));
+    assert!(output.contains("use-example"));
+    assert!(output.contains("0.1.0"));
+    assert!(output.contains("status: ok"));
+}
+
+#[test]
 fn root_help_works() {
     let output = run_help(CliBinary::Rustuse, &["--help"]);
 
@@ -148,6 +214,41 @@ fn doctor_help_works() {
     let output = run_help(CliBinary::Rustuse, &["doctor", "--help"]);
 
     assert!(output.contains("Check this directory"));
+}
+
+#[test]
+fn dev_help_works() {
+    let output = run_help(CliBinary::Rustuse, &["dev", "--help"]);
+
+    assert!(output.contains("check"));
+    assert!(output.contains("facade"));
+    assert!(output.contains("info"));
+    assert!(output.contains("root"));
+}
+
+#[test]
+fn dev_root_help_works() {
+    let output = run_help(CliBinary::Rustuse, &["dev", "root", "--help"]);
+
+    assert!(output.contains("inspect"));
+    assert!(output.contains("manifests"));
+    assert!(output.contains("report"));
+    assert!(output.contains("scan"));
+}
+
+#[test]
+fn dev_facade_help_works() {
+    let output = run_help(CliBinary::Rustuse, &["dev", "facade", "--help"]);
+
+    assert!(output.contains("run"));
+    assert!(output.contains("report"));
+}
+
+#[test]
+fn dev_facade_run_help_works() {
+    let output = run_help(CliBinary::Rustuse, &["dev", "facade", "run", "--help"]);
+
+    assert!(output.contains("Facade repository root"));
 }
 
 #[test]
@@ -280,8 +381,10 @@ fn init_rejects_conflicting_modes() {
     );
 
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("--copy-first and --cargo-first cannot be used together"));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("--copy-first and --cargo-first cannot be used together")
+    );
 }
 
 #[test]
@@ -331,4 +434,483 @@ fn cargo_rustuse_add_use_geometry_works() {
 
     assert!(output.contains("Would add use-geometry as a Cargo dependency"));
     assert!(!project.path().join("rustuse.toml").exists());
+}
+
+#[test]
+fn dev_without_subcommand_shows_help() {
+    let project = TempProject::new("dev-no-subcommand");
+    let output = run_raw(CliBinary::Rustuse, &["dev"], project.path());
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Usage:"));
+    assert!(stderr.contains("Commands:"));
+}
+
+#[test]
+fn dev_root_without_subcommand_shows_help() {
+    let project = TempProject::new("dev-root-no-subcommand");
+    let output = run_raw(CliBinary::Rustuse, &["dev", "root"], project.path());
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Usage:"));
+    assert!(stderr.contains("Commands:"));
+}
+
+#[test]
+fn dev_facade_without_subcommand_shows_help() {
+    let project = TempProject::new("dev-facade-no-subcommand");
+    let output = run_raw(CliBinary::Rustuse, &["dev", "facade"], project.path());
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Usage:"));
+    assert!(stderr.contains("Commands:"));
+}
+
+#[test]
+fn dev_root_report_stdout_includes_basic_sections() {
+    let project = TempProject::new("dev-root-report-stdout");
+    let facade_root = project.path().join("use-example");
+
+    fs::create_dir_all(facade_root.join(".git")).expect("failed to create facade .git directory");
+    fs::create_dir_all(facade_root.join("crates/use-example"))
+        .expect("failed to create facade crate directory");
+
+    fs::write(
+        facade_root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\nresolver = \"3\"\n",
+    )
+    .expect("failed to write facade workspace Cargo.toml");
+
+    fs::write(
+        facade_root.join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write facade package Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "root", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("RustUse dev root report - root:"));
+    assert!(output.contains("# RustUse Development Root Report"));
+    assert!(output.contains("## Summary"));
+    assert!(output.contains("## Action Plan"));
+    assert!(output.contains("## Cargo Manifest Health"));
+    assert!(output.contains("## Facade Inventory"));
+    assert!(output.contains("use-example"));
+}
+
+#[test]
+fn dev_facade_report_help_works() {
+    let output = run_help(CliBinary::Rustuse, &["dev", "facade", "report", "--help"]);
+
+    assert!(output.contains("Facade repository root"));
+    assert!(output.contains("--output"));
+    assert!(output.contains("--stdout"));
+}
+
+#[test]
+fn dev_facade_report_stdout_includes_basic_sections() {
+    let project = TempProject::new("dev-facade-report-stdout");
+
+    fs::write(project.path().join("Cargo.toml"), "[workspace]\n")
+        .expect("failed to write Cargo.toml");
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example"))
+        .expect("failed to create crate directory");
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("RustUse dev facade report - root:"));
+    assert!(output.contains("# RustUse Facade Report"));
+    assert!(output.contains("## Summary"));
+    assert!(output.contains("## Action Plan"));
+    assert!(output.contains("## Facade Shape"));
+    assert!(output.contains("- [Cargo Manifest Health](#cargo-manifest-health)"));
+    assert!(output.contains("## Cargo Manifest Health"));
+    assert!(output.contains("### Manifest Inventory"));
+    assert!(output.contains("## Child Crates"));
+    assert!(output.contains("use-example"));
+    assert!(output.contains("crates/use-example/Cargo.toml"));
+    assert!(output.contains("Status:"));
+    assert!(output.contains("- Status: **warning**"));
+    assert!(output.contains("- Clean up manifest warnings."));
+}
+#[test]
+fn dev_facade_report_writes_default_report() {
+    let project = TempProject::new("dev-facade-report-write");
+
+    fs::write(project.path().join("Cargo.toml"), "[workspace]\n")
+        .expect("failed to write Cargo.toml");
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example"))
+        .expect("failed to create crate directory");
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", "."],
+        project.path(),
+    );
+
+    let report_path = project.path().join("rustuse-report.md");
+    let report = fs::read_to_string(&report_path).expect("failed to read generated report");
+
+    assert!(output.contains("RustUse dev facade report - root:"));
+    assert!(output.contains("wrote:"));
+    assert!(report_path.is_file());
+    assert!(report.contains("# RustUse Facade Report"));
+    assert!(report.contains("## Summary"));
+    assert!(report.contains("## Action Plan"));
+    assert!(report.contains("## Facade Shape"));
+    assert!(report.contains("- [Cargo Manifest Health](#cargo-manifest-health)"));
+    assert!(report.contains("## Cargo Manifest Health"));
+    assert!(report.contains("### Manifest Inventory"));
+    assert!(report.contains("## Child Crates"));
+    assert!(report.contains("use-example"));
+    assert!(report.contains("crates/use-example/Cargo.toml"));
+    assert!(report.contains("- Status: **warning**"));
+    assert!(report.contains("- Clean up manifest warnings."));
+}
+
+#[test]
+fn dev_facade_report_writes_custom_report_path() {
+    let project = TempProject::new("dev-facade-report-custom-output");
+
+    fs::write(project.path().join("Cargo.toml"), "[workspace]\n")
+        .expect("failed to write Cargo.toml");
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example"))
+        .expect("failed to create crate directory");
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &[
+            "dev",
+            "facade",
+            "report",
+            ".",
+            "--output",
+            "reports/facade-report.md",
+        ],
+        project.path(),
+    );
+
+    let report_path = project.path().join("reports/facade-report.md");
+    let report = fs::read_to_string(&report_path).expect("failed to read generated report");
+
+    assert!(output.contains("wrote:"));
+    assert!(report_path.is_file());
+    assert!(report.contains("# RustUse Facade Report"));
+    assert!(report.contains("- [Cargo Manifest Health](#cargo-manifest-health)"));
+    assert!(report.contains("## Cargo Manifest Health"));
+    assert!(report.contains("### Manifest Inventory"));
+    assert!(report.contains("use-example"));
+    assert!(report.contains("crates/use-example/Cargo.toml"));
+}
+
+#[test]
+fn dev_facade_report_includes_manifest_issue_counts() {
+    let project = TempProject::new("dev-facade-report-manifest-health");
+
+    fs::write(project.path().join("Cargo.toml"), "[workspace]\n")
+        .expect("failed to write Cargo.toml");
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example"))
+        .expect("failed to create crate directory");
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("## Cargo Manifest Health"));
+    assert!(output.contains("- Status: **warning**"));
+    assert!(output.contains("- Manifests inspected: `2`"));
+    assert!(output.contains("- Issues: `"));
+    assert!(output.contains("- Warnings: `"));
+    assert!(output.contains("### Manifest Issues"));
+    assert!(output.contains("missing-workspace-resolver"));
+    assert!(output.contains("- Clean up manifest warnings."));
+}
+
+#[test]
+fn dev_facade_report_stdout_includes_repository_surface_sections() {
+    let project = TempProject::new("dev-facade-report-repository-surface");
+
+    fs::write(
+        project.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\nresolver = \"3\"\n",
+    )
+    .expect("failed to write Cargo.toml");
+
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join(".cargo")).expect("failed to create .cargo");
+    fs::create_dir_all(project.path().join(".github")).expect("failed to create .github");
+    fs::create_dir_all(project.path().join("crates/use-example/src"))
+        .expect("failed to create crate src");
+
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    fs::write(
+        project.path().join("crates/use-example/src/lib.rs"),
+        "#![forbid(unsafe_code)]\n",
+    )
+    .expect("failed to write lib.rs");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("## Repository Surface"));
+    assert!(output.contains("## Standard File Consistency"));
+    assert!(output.contains("## Tooling Configuration"));
+    assert!(output.contains("## Development Environment"));
+    assert!(output.contains(".cargo/config.toml"));
+    assert!(output.contains("## CI/CD Surface"));
+    assert!(output.contains("## Documentation Surface"));
+    assert!(output.contains("## Release Surface"));
+    assert!(output.contains("## Generated / Local Artifacts"));
+    assert!(output.contains("| `.cargo` | yes |"));
+    assert!(output.contains("| `.github/` | yes |"));
+}
+
+#[test]
+fn dev_facade_report_flags_docs_directory_as_non_standard() {
+    let project = TempProject::new("dev-facade-report-non-standard-docs");
+
+    fs::write(
+        project.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\nresolver = \"3\"\n",
+    )
+    .expect("failed to write Cargo.toml");
+
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("docs")).expect("failed to create docs directory");
+    fs::create_dir_all(project.path().join("crates/use-example/src"))
+        .expect("failed to create crate src");
+
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    fs::write(
+        project.path().join("crates/use-example/src/lib.rs"),
+        "#![forbid(unsafe_code)]\n",
+    )
+    .expect("failed to write lib.rs");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("## Non-standard Paths"));
+    assert!(
+        output.contains("| `docs/` | Move facade documentation to the central docs repository. |")
+    );
+    assert!(output.contains("## Documentation Surface"));
+    assert!(!output.contains("docs/maintainer-release-flow.md"));
+    assert!(output.contains("- [Non-standard Paths](#non-standard-paths)"));
+}
+
+#[test]
+fn dev_facade_report_includes_github_gitlab_and_release_ci_surfaces() {
+    let project = TempProject::new("use-example");
+
+    fs::write(
+        project.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\nresolver = \"3\"\n",
+    )
+    .expect("failed to write Cargo.toml");
+
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join(".github/workflows"))
+        .expect("failed to create GitHub workflows directory");
+    fs::create_dir_all(project.path().join(".gitlab")).expect("failed to create GitLab directory");
+
+    fs::write(
+        project.path().join(".github/dependabot.yml"),
+        "version: 2\nupdates: []\n",
+    )
+    .expect("failed to write dependabot.yml");
+
+    fs::write(project.path().join(".gitlab-ci.yml"), "stages: []\n")
+        .expect("failed to write .gitlab-ci.yml");
+
+    fs::write(project.path().join("release-plz.toml"), "[workspace]\n")
+        .expect("failed to write release-plz.toml");
+
+    for (path, contents) in [
+        ("README.md", "# use-example\n"),
+        ("CHANGELOG.md", "# Changelog\n"),
+        ("CONTRIBUTING.md", "# Contributing\n"),
+        ("GOVERNANCE.md", "# Governance\n"),
+        ("MAINTAINERS.md", "# Maintainers\n"),
+        ("RELEASE.md", "# Release\n"),
+        ("RELEASING.md", "# Releasing\n"),
+        (
+            "Cargo.lock",
+            "# This file is automatically @generated by Cargo.\n",
+        ),
+    ] {
+        fs::write(project.path().join(path), contents)
+            .unwrap_or_else(|error| panic!("failed to write {path}: {error}"));
+    }
+
+    fs::create_dir_all(project.path().join("crates/use-example/src"))
+        .expect("failed to create facade crate src");
+
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write facade Cargo.toml");
+
+    fs::write(
+        project.path().join("crates/use-example/README.md"),
+        "# use-example\n",
+    )
+    .expect("failed to write README.md");
+
+    fs::write(
+        project.path().join("crates/use-example/src/lib.rs"),
+        "#![forbid(unsafe_code)]\n",
+    )
+    .expect("failed to write lib.rs");
+
+    fs::write(
+        project.path().join("crates/use-example/src/prelude.rs"),
+        "pub use crate::*;\n",
+    )
+    .expect("failed to write prelude.rs");
+
+    fs::create_dir_all(project.path().join(".cargo")).expect("failed to create .cargo");
+    fs::create_dir_all(project.path().join(".devcontainer"))
+        .expect("failed to create .devcontainer");
+    fs::create_dir_all(project.path().join("scripts")).expect("failed to create scripts");
+
+    for (path, contents) in [
+        (".cargo/config.toml", ""),
+        (".clippy.toml", ""),
+        (".rustfmt.toml", ""),
+        (".taplo.toml", ""),
+        ("deny.toml", ""),
+        (".gitleaks.toml", ""),
+        (".trivyignore", ""),
+        ("rust-toolchain.toml", "[toolchain]\nchannel = \"1.95.0\"\n"),
+        (".devcontainer/devcontainer.json", "{}\n"),
+        (".devcontainer/post-create.sh", "#!/usr/bin/env sh\n"),
+        ("scripts/bootstrap-dev-tools.ps1", ""),
+        ("scripts/bootstrap-dev-tools.sh", "#!/usr/bin/env sh\n"),
+        ("scripts/sync-mirrors.sh", "#!/usr/bin/env sh\n"),
+    ] {
+        fs::write(project.path().join(path), contents)
+            .unwrap_or_else(|error| panic!("failed to write {path}: {error}"));
+    }
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("## CI/CD Surface"));
+    assert!(output.contains("### GitHub CI/CD Surface"));
+    assert!(output.contains("### Required GitHub Workflows"));
+    assert!(output.contains("### GitLab CI Surface"));
+    assert!(output.contains("### Release CI/CD Surface"));
+    assert!(output.contains("- GitLab CI surface: `2/2`"));
+    assert!(output.contains("| `.gitlab/` | yes |"));
+    assert!(output.contains("| `.gitlab-ci.yml` | yes |"));
+    assert!(output.contains("| `release-plz.toml` | yes |"));
+    assert!(output.contains("## Documentation Surface\n\n- Status: **ok**\n- Present: `5/5`"));
+    assert!(output.contains("## Tooling Configuration\n\n- Status: **ok**\n- Present: `8/8`"));
+    assert!(output.contains("## Development Environment\n\n- Status: **ok**\n- Present: `6/6`"));
+    assert!(output.contains("## Release Surface\n\n- Status: **ok**\n- Present: `5/5`"));
+    assert!(output.contains("- Release CI/CD surface: `1/1`"));
+}
+
+#[test]
+fn dev_facade_report_includes_generated_local_artifacts() {
+    let project = TempProject::new("dev-facade-report-generated-artifacts");
+
+    fs::write(
+        project.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\nresolver = \"3\"\n",
+    )
+    .expect("failed to write Cargo.toml");
+
+    fs::create_dir_all(project.path().join(".git")).expect("failed to create .git directory");
+    fs::create_dir_all(project.path().join("crates/use-example/src"))
+        .expect("failed to create crate src");
+
+    fs::write(
+        project.path().join("crates/use-example/Cargo.toml"),
+        "[package]\nname = \"use-example\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("failed to write child Cargo.toml");
+
+    fs::write(
+        project.path().join("crates/use-example/src/lib.rs"),
+        "#![forbid(unsafe_code)]\n",
+    )
+    .expect("failed to write lib.rs");
+
+    fs::create_dir_all(project.path().join("target/flycheck0"))
+        .expect("failed to create flycheck0 directory");
+    fs::create_dir_all(project.path().join("target/flycheck20"))
+        .expect("failed to create flycheck20 directory");
+
+    let output = run_success(
+        CliBinary::Rustuse,
+        &["dev", "facade", "report", ".", "--stdout"],
+        project.path(),
+    );
+
+    assert!(output.contains("## Generated / Local Artifacts"));
+    assert!(output.contains("| `target` | Cargo build output |"));
+    assert!(output.contains("| `target/flycheck0` | rust-analyzer flycheck output |"));
+    assert!(output.contains("| `target/flycheck20` | rust-analyzer flycheck output |"));
 }

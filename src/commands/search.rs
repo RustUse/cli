@@ -1,8 +1,15 @@
 use anyhow::Result;
+use clap::Args;
 
-use crate::cli::SearchArgs;
+// use crate::cli::SearchArgs;
 use crate::index;
 use crate::output::Output;
+
+#[derive(Debug, Args)]
+pub struct SearchArgs {
+    /// Search text, such as geometry or use-slug.
+    pub query: String,
+}
 
 pub fn run(args: SearchArgs, output: Output) -> Result<()> {
     let total_entries = index::all_entries().len();

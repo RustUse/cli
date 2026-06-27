@@ -1,3 +1,16 @@
+//! RustUse command-line adoption helper.
+//!
+//! This crate powers the `rustuse` and `cargo-rustuse` binaries.
+//!
+//! The stable runtime entry points are [`run`] and [`run_cargo_subcommand`].
+//! Most modules are internal command adapters and development utilities.
+//!
+//! Use this while working on CLI internals:
+//!
+//! ```text
+//! cargo doc --no-deps --document-private-items --open
+//! ```
+
 #![forbid(unsafe_code)]
 
 use std::ffi::{OsStr, OsString};
@@ -5,6 +18,7 @@ use std::ffi::{OsStr, OsString};
 mod cli;
 mod commands;
 mod config;
+// mod dev;
 mod index;
 mod manifest;
 mod output;
@@ -23,7 +37,7 @@ pub fn run_cargo_subcommand() -> Result<()> {
     run_from(cargo_subcommand_args())
 }
 
-fn run_from<I, T>(args: I) -> Result<()>
+pub fn run_from<I, T>(args: I) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -41,9 +55,9 @@ fn cargo_subcommand_args() -> Vec<OsString> {
     }
 
     match raw_args.next() {
-        Some(first) if first.as_os_str() == OsStr::new("rustuse") => {}
+        Some(first) if first.as_os_str() == OsStr::new("rustuse") => {},
         Some(first) => args.push(first),
-        None => {}
+        None => {},
     }
 
     args.extend(raw_args);

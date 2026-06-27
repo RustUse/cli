@@ -1,11 +1,26 @@
 use anyhow::{Result, ensure};
+use clap::Args;
 
-use crate::cli::AddArgs;
+use crate::cli::NamedCommandArgs;
+use crate::commands::copy::CopyOptions;
 use crate::index::DistributionMode;
 use crate::output::Output;
 use crate::project;
 
 use super::{entry_for, tests_label};
+
+#[derive(Debug, Args)]
+pub struct AddArgs {
+    #[command(flatten)]
+    pub target: NamedCommandArgs,
+
+    /// Plan copy mode instead of Cargo dependency mode.
+    #[arg(long)]
+    pub copy: bool,
+
+    #[command(flatten)]
+    pub copy_options: CopyOptions,
+}
 
 pub fn run(args: AddArgs, output: Output) -> Result<()> {
     let entry = entry_for(&args.target.name)?;

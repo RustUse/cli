@@ -1,0 +1,127 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Test
+        run: cargo test --all-features --locked
+
+      - name: Build binaries
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package Unix binaries
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist package
+
+          cp "target/${{ matrix.target }}/release/rustuse" package/
+          cp "target/${{ matrix.target }}/release/cargo-rustuse" package/
+
+          cp README.md package/ || true
+          cp LICENSE-MIT package/ || true
+          cp LICENSE-APACHE package/ || true
+
+          tar -C package -czf "dist/rustuse-${{ github.ref_name }}-${{ matrix.target }}.tar.gz" .
+
+      - name: Package Windows binaries
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          New-Item -ItemType Directory -Force package | Out-Null
+
+          Copy-Item "target/${{ matrix.target }}/release/rustuse.exe" package/
+          Copy-Item "target/${{ matrix.target }}/release/cargo-rustuse.exe" package/
+
+          if (Test-Path README.md) {
+            Copy-Item README.md package/
+          }
+
+          if (Test-Path LICENSE-MIT) {
+            Copy-Item LICENSE-MIT package/
+          }
+
+          if (Test-Path LICENSE-APACHE) {
+            Copy-Item LICENSE-APACHE package/
+          }
+
+          Compress-Archive `
+            -Path package/* `
+            -DestinationPath "dist/rustuse-${{ github.ref_name }}-${{ matrix.target }}.zip" `
+            -Force
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustuse-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download packaged binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/* \
+            --verify-tag \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
