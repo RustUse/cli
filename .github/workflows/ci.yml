@@ -15,20 +15,25 @@ env:
 
 jobs:
   validate:
-    name: Validate ${{ matrix.os }}
+    name: Validate ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+        include:
+          - name: ubuntu-24.04
+            os: ubuntu-24.04
+
+          - name: windows-2025
+            os: windows-2025
+
+          - name: macos-15-arm64
+            os: macos-15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show Rust toolchain
         run: rustup show
@@ -50,7 +55,7 @@ jobs:
 
   required:
     name: CI Required
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - validate
     if: always()
