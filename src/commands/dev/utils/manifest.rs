@@ -42,63 +42,6 @@ const EXPECTED_WORKSPACE_INHERITED_PACKAGE_FIELDS: &[&str] = &[
     "repository",
 ];
 
-/* fn manifest_shape_bucket(code: &str) -> &'static str {
-    match code {
-        "missing-standard-workspace-member"
-        | "non-standard-workspace-members"
-        | "missing-workspace"
-        | "missing-workspace-members"
-        | "invalid-workspace-members"
-        | "missing-workspace-resolver"
-        | "workspace-resolver"
-        | "missing-workspace-package"
-        | "missing-workspace-package-field"
-        | "invalid-workspace-repository"
-        | "missing-workspace-dependencies"
-        | "missing-workspace-dependency"
-        | "invalid-workspace-dependency"
-        | "invalid-workspace-dependency-path"
-        | "missing-workspace-dependency-path"
-        | "missing-workspace-dependency-version"
-        | "missing-workspace-unsafe-code-policy"
-        | "invalid-workspace-unsafe-code-policy"
-        | "missing-workspace-clippy-lints" => "Workspace shape",
-
-        "missing-facade-dependencies"
-        | "missing-facade-child-dependency"
-        | "invalid-facade-child-dependency"
-        | "missing-facade-child-dependency-optional"
-        | "missing-facade-features"
-        | "invalid-facade-default-features"
-        | "missing-facade-default-features"
-        | "missing-facade-full-feature"
-        | "missing-full-feature-member"
-        | "missing-facade-child-feature"
-        | "invalid-facade-child-feature" => "Facade wiring",
-
-        "invalid-package-homepage"
-        | "invalid-package-documentation"
-        | "missing-package-readme-file"
-        | "missing-docs-rs-all-features"
-        | "invalid-docs-rs-all-features"
-        | "missing-lints-workspace"
-        | "package-name-directory-mismatch"
-        | "invalid-facade-package-name"
-        | "invalid-child-package-name" => "Package shape",
-
-        "invalid-category-slug"
-        | "too-many-categories"
-        | "duplicate-category"
-        | "invalid-categories-shape"
-        | "invalid-category-value"
-        | "missing-workspace-categories"
-        | "missing-package-categories"
-        | "missing-inherited-categories" => "Category metadata",
-
-        _ => "General metadata",
-    }
-} */
-
 #[derive(Debug)]
 pub(crate) struct FacadeManifestReport {
     pub(crate) facade_name: String,
@@ -941,68 +884,6 @@ fn validate_workspace_repository(
     }
 }
 
-/* fn validate_workspace_dependencies(
-    workspace: &toml::Table,
-    child_crate_names: &BTreeSet<String>,
-    report: &mut ManifestFileReport,
-) {
-    let Some(dependencies) = workspace
-        .get("dependencies")
-        .and_then(toml::Value::as_table)
-    else {
-        report.issues.push(ManifestIssue::warning(
-            "missing-workspace-dependencies",
-            "missing [workspace.dependencies]",
-        ));
-        return;
-    };
-
-    for crate_name in child_crate_names {
-        let Some(dependency) = dependencies.get(crate_name) else {
-            report.issues.push(ManifestIssue::warning(
-                "missing-workspace-dependency",
-                format!("missing [workspace.dependencies].{crate_name}"),
-            ));
-            continue;
-        };
-
-        let Some(dependency_table) = dependency.as_table() else {
-            report.issues.push(ManifestIssue::warning(
-                "invalid-workspace-dependency",
-                format!("expected [workspace.dependencies].{crate_name} to be an inline table"),
-            ));
-            continue;
-        };
-
-        let expected_path = format!("crates/{crate_name}");
-
-        match dependency_table.get("path").and_then(toml::Value::as_str) {
-            Some(actual_path) if actual_path == expected_path => {}
-            Some(actual_path) => report.issues.push(ManifestIssue::warning(
-                "invalid-workspace-dependency-path",
-                format!(
-                    "expected [workspace.dependencies].{crate_name}.path = `{expected_path}`, found `{actual_path}`"
-                ),
-            )),
-            None => report.issues.push(ManifestIssue::warning(
-                "missing-workspace-dependency-path",
-                format!("missing [workspace.dependencies].{crate_name}.path"),
-            )),
-        }
-
-        if dependency_table
-            .get("version")
-            .and_then(toml::Value::as_str)
-            .is_none()
-        {
-            report.issues.push(ManifestIssue::warning(
-                "missing-workspace-dependency-version",
-                format!("missing [workspace.dependencies].{crate_name}.version"),
-            ));
-        }
-    }
-} */
-
 fn validate_workspace_dependencies(
     workspace: &toml::Table,
     child_crates: &BTreeMap<String, ChildCrateInfo>,
@@ -1023,37 +904,6 @@ fn validate_workspace_dependencies(
     validate_child_workspace_dependencies(dependencies, child_crates, report);
     validate_orphan_workspace_dependency_paths(dependencies, child_crates, report);
 }
-
-/* fn validate_all_workspace_dependency_versions(
-    dependencies: &toml::Table,
-    report: &mut ManifestFileReport,
-) {
-    for (dependency_name, dependency) in dependencies {
-        let Some(dependency_table) = dependency.as_table() else {
-            report.issues.push(ManifestIssue::warning(
-                "invalid-workspace-dependency-shape",
-                format!(
-                    "expected [workspace.dependencies].{dependency_name} to be an inline table with version"
-                ),
-            ));
-            continue;
-        };
-
-        match dependency_table.get("version") {
-            Some(version) if version.as_str().is_some_and(|value| !value.trim().is_empty()) => {},
-            Some(_) => report.issues.push(ManifestIssue::warning(
-                "invalid-workspace-dependency-version",
-                format!(
-                    "expected [workspace.dependencies].{dependency_name}.version to be a non-empty string"
-                ),
-            )),
-            None => report.issues.push(ManifestIssue::warning(
-                "missing-workspace-dependency-version",
-                format!("missing [workspace.dependencies].{dependency_name}.version"),
-            )),
-        }
-    }
-} */
 
 fn validate_all_workspace_dependency_versions(
     dependencies: &toml::Table,
@@ -1143,15 +993,22 @@ fn validate_child_workspace_dependencies(
 
         if let (Some(expected_version), Some(actual_version)) =
             (child_crate.version.as_deref(), actual_version)
+            && actual_version != expected_version
         {
-            if actual_version != expected_version {
-                report.issues.push(ManifestIssue::warning(
-                    "mismatched-workspace-dependency-version",
-                    format!(
-                        "expected [workspace.dependencies].{crate_name}.version = `{expected_version}`, found `{actual_version}`"
-                    ),
-                ));
-            }
+            /* report.issues.push(ManifestIssue::warning(
+                "mismatched-workspace-dependency-version",
+                format!(
+                    "workspace dependency `{}` uses version `{}`, but child crate version is `{}`",
+                    child_crate.name, actual_version, expected_version
+                ),
+            )); */
+
+            report.issues.push(ManifestIssue::warning(
+                "mismatched-workspace-dependency-version",
+                format!(
+                    "workspace dependency uses version `{actual_version}`, but child crate version is `{expected_version}`"
+                ),
+            ));
         }
     }
 }
@@ -1329,13 +1186,16 @@ fn validate_facade_features(
     for child_crate in child_crate_names {
         let feature_name = feature_name_for_child_crate(child_crate);
 
-        if let Some(full_features) = &full_features {
-            if !full_features.contains(feature_name.as_str()) {
-                report.issues.push(ManifestIssue::warning(
-                    "missing-full-feature-member",
-                    format!("expected [features].full to include `{feature_name}`"),
-                ));
-            }
+        if let Some(full_features) = &full_features
+            && !full_features.contains(feature_name.as_str())
+        {
+            report.issues.push(ManifestIssue::warning(
+                "missing-full-feature-member",
+                format!(
+                    "feature `{}` is not included in the `full` feature",
+                    feature_name
+                ),
+            ));
         }
 
         let Some(feature_values) = features

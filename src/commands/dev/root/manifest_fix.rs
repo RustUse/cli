@@ -1206,7 +1206,7 @@ fn append_workspace_dependency_entries(
         entries.push((child.dependency_name().to_string(), value));
     }
 
-    entries.sort_by(|left, right| dependency_sort_key(&left.0).cmp(&dependency_sort_key(&right.0)));
+    entries.sort_by_key(|entry| dependency_sort_key(&entry.0));
 
     for (name, value) in entries {
         out.push_str(&format!("{name} = {value}\n"));

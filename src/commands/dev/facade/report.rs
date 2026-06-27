@@ -102,6 +102,7 @@ pub(crate) fn run(args: DevFacadeReportArgs, output: Output) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_report(
     facade: &FacadeInfo,
     manifest_report: &FacadeManifestReport,

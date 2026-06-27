@@ -95,7 +95,7 @@ pub(crate) fn analyze_standard_file(
 
             StandardFileVariant {
                 hash: stable_hash_hex(&content),
-                byte_len: content.as_bytes().len(),
+                byte_len: content.len(),
                 line_count: content.lines().count(),
                 facades,
             }

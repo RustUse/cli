@@ -136,7 +136,7 @@ fn render_markdown_checks(
                 output,
                 "| {} | `{}` | `{}` | `{}` |",
                 check.status.as_str(),
-                escape_markdown_table_cell(&check.relative_path),
+                escape_markdown_table_cell(check.relative_path),
                 option_hash(check.expected_hash.as_deref()),
                 option_hash(check.actual_hash.as_deref())
             )
@@ -151,7 +151,7 @@ fn render_markdown_checks(
                 output,
                 "| {} | `{}` |",
                 check.status.as_str(),
-                escape_markdown_table_cell(&check.relative_path)
+                escape_markdown_table_cell(check.relative_path)
             )
             .expect("writing to string should not fail");
         }
