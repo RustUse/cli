@@ -29,4 +29,4 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
-use-rust = { version = "0.2.0", path = "../use-rust/crates/use-rust" }
+# use-rust = { version = "0.2.0", path = "../use-rust/crates/use-rust" }

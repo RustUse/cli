@@ -33,6 +33,9 @@ jobs:
       - name: Show Rust toolchain
         run: rustup show
 
+      - name: Cargo metadata
+        run: cargo metadata --locked --format-version 1 --no-deps
+
       - name: Format check
         run: cargo fmt --all -- --check
 
