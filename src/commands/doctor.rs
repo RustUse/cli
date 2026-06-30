@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+/* use anyhow::{Context, Result};
 
 use crate::output::Output;
 use crate::project;
@@ -61,4 +61,25 @@ pub fn run(output: Output) -> Result<()> {
 
 fn status_label(present: bool) -> &'static str {
     if present { "found" } else { "missing" }
+}
+ */
+
+use std::path::PathBuf;
+
+use anyhow::Result;
+use clap::Args;
+
+use crate::output::Output;
+
+use super::placeholder;
+
+#[derive(Debug, Args)]
+pub struct DoctorArgs {
+    /// Directory to inspect.
+    #[arg(default_value = ".", value_name = "PATH")]
+    pub path: PathBuf,
+}
+
+pub fn run(args: DoctorArgs, output: Output) -> Result<()> {
+    placeholder(output, "doctor", format!("path={}", args.path.display()))
 }

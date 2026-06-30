@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+/* use anyhow::{Context, Result, bail};
 use clap::Args;
 // use std::path::PathBuf;
 
@@ -145,4 +145,33 @@ fn print_plan(
     output.line("  rustuse add use-geometry");
     output.line("  rustuse copy use-slug");
     output.line("  rustuse add use-slug --copy");
+}
+ */
+
+use std::path::PathBuf;
+
+use anyhow::Result;
+use clap::Args;
+
+use crate::output::Output;
+
+use super::placeholder;
+
+#[derive(Debug, Args)]
+pub struct InitArgs {
+    /// Directory to initialize.
+    #[arg(default_value = ".", value_name = "PATH")]
+    pub path: PathBuf,
+
+    /// Overwrite existing rustuse.toml if present.
+    #[arg(long)]
+    pub force: bool,
+}
+
+pub fn run(args: InitArgs, output: Output) -> Result<()> {
+    placeholder(
+        output,
+        "init",
+        format!("path={}, force={}", args.path.display(), args.force),
+    )
 }

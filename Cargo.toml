@@ -9,7 +9,6 @@ name = "rustuse-cli"
 publish = false
 repository = "https://github.com/RustUse/cli"
 rust-version = "1.95.0"
-# version = "0.2.0"
 version = "0.2.0-beta.1"
 
 [lib]
@@ -30,3 +29,13 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 # use-rust = { version = "0.2.0", path = "../use-rust/crates/use-rust" }
+# use-rust = { version = "0.1.0" }
+# use-cli = { version = "0.1.0" }
+# use-config = { version = "0.1.0" }
+# use-fs = { version = "0.1.0" }
+# use-git = { version = "0.1.0" }
+# use-diagnostic = { version = "0.1.0" }
+# use-id = { version = "0.1.0" }
+# use-text = { version = "0.1.0" }
+# use-time = { version = "0.1.0" }
+# use-validate = { version = "0.1.0" }

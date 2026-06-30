@@ -1,11 +1,11 @@
-use anyhow::{Result, ensure};
+/* use anyhow::{Result, ensure};
 use clap::Args;
 
-use crate::cli::NamedCommandArgs;
+use crate::commands::NamedCommandArgs;
 use crate::commands::copy::CopyOptions;
-use crate::index::DistributionMode;
 use crate::output::Output;
 use crate::project;
+use crate::rustuse::catalog::DistributionMode;
 
 use super::{entry_for, tests_label};
 
@@ -72,4 +72,43 @@ fn copy_tracking_message() -> Result<&'static str> {
             "No rustuse.toml found; this would be copied without tracking. Run `rustuse init` for managed workflows.",
         )
     }
+}
+ */
+
+use anyhow::Result;
+use clap::{Args, ValueEnum};
+
+use crate::output::Output;
+
+use super::{NamedCommandArgs, placeholder};
+
+#[derive(Debug, Args)]
+pub struct AddArgs {
+    #[command(flatten)]
+    pub name: NamedCommandArgs,
+
+    /// Adoption mode.
+    #[arg(long, value_enum, default_value_t = AddMode::Cargo)]
+    pub mode: AddMode,
+
+    /// Do not write changes; only show intent.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum AddMode {
+    Cargo,
+    Copy,
+}
+
+pub fn run(args: AddArgs, output: Output) -> Result<()> {
+    placeholder(
+        output,
+        "add",
+        format!(
+            "name={}, mode={:?}, dry_run={}",
+            args.name.name, args.mode, args.dry_run
+        ),
+    )
 }

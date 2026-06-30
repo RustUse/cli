@@ -2,27 +2,22 @@
 //!
 //! This crate powers the `rustuse` and `cargo-rustuse` binaries.
 //!
-//! The stable runtime entry points are [`run`] and [`run_cargo_subcommand`].
-//! Most modules are internal command adapters and development utilities.
-//!
-//! Use this while working on CLI internals:
-//!
-//! ```text
-//! cargo doc --no-deps --document-private-items --open
-//! ```
+//! Runtime entry points are [`run`], [`run_cargo_subcommand`], and [`run_from`].
+//! Command modules adapt CLI arguments into RustUse business workflows.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
 
 use std::ffi::{OsStr, OsString};
 
 mod cli;
 mod commands;
 mod config;
-// mod dev;
-mod index;
 mod manifest;
 mod output;
 mod project;
+mod rustuse;
 
 use anyhow::Result;
 use clap::Parser;
