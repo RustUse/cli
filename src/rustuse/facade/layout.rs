@@ -17,7 +17,6 @@ pub type StandardPath = (&'static str, &'static str);
 
 pub const CARGO_CONFIG_DIR: &str = ".cargo";
 pub const GITHUB_DIR: &str = ".github";
-pub const GITHUB_WORKFLOWS_DIR: &str = ".github/workflows";
 pub const GITLAB_DIR: &str = ".gitlab";
 pub const DEVCONTAINER_DIR: &str = ".devcontainer";
 pub const VSCODE_DIR: &str = ".vscode";
@@ -27,8 +26,8 @@ pub const SRC_DIR: &str = "src";
 pub const TESTS_DIR: &str = "tests";
 pub const EXAMPLES_DIR: &str = "examples";
 pub const DOCS_DIR: &str = "docs";
-pub const SCRIPTS_DIR: &str = "scripts";
 pub const TARGET_DIR: &str = "target";
+pub const SCRIPTS_DIR: &str = "scripts";
 
 // -----------------------------------------------------------------------------
 // Common root file names
@@ -69,16 +68,17 @@ pub const MAKEFILE: &str = "Makefile";
 // Common GitHub workflow paths
 // -----------------------------------------------------------------------------
 
-pub const GITHUB_CI_WORKFLOW: &str = ".github/workflows/ci.yml";
+// pub const GITHUB_WORKFLOWS: &str = ".github/workflows";
+/* pub const GITHUB_CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 pub const GITHUB_CODEQL_WORKFLOW: &str = ".github/workflows/codeql.yml";
 pub const GITHUB_RELEASE_WORKFLOW: &str = ".github/workflows/release.yml";
-pub const GITHUB_TRIVY_WORKFLOW: &str = ".github/workflows/trivy.yml";
+pub const GITHUB_TRIVY_WORKFLOW: &str = ".github/workflows/trivy.yml"; */
 
 // -----------------------------------------------------------------------------
 // Common standard file groups
 // -----------------------------------------------------------------------------
 
-/// Standard formatting, editor, and repository hygiene files.
+/* /// Standard formatting, editor, and repository hygiene files.
 pub const STANDARD_TOOLING_FILES: &[StandardPath] = &[
     (CLIPPY_CONFIG, "Clippy configuration"),
     (EDITORCONFIG, "EditorConfig"),
@@ -168,3 +168,4 @@ pub const STANDARD_FACADE_DIRECTORIES: &[StandardPath] = &[
 /// Optional source-adjacent directories.
 pub const OPTIONAL_RUST_SOURCE_DIRECTORIES: &[StandardPath] =
     &[(EXAMPLES_DIR, "Examples"), (DOCS_DIR, "Documentation")];
+ */

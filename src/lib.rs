@@ -39,7 +39,15 @@ where
 }
 
 fn cargo_subcommand_args() -> Vec<OsString> {
-    let mut raw_args = std::env::args_os();
+    normalize_cargo_subcommand_args(std::env::args_os())
+}
+
+fn normalize_cargo_subcommand_args<I, T>(raw_args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString>,
+{
+    let mut raw_args = raw_args.into_iter().map(Into::into);
     let mut args = Vec::new();
 
     if let Some(binary) = raw_args.next() {
@@ -54,4 +62,37 @@ fn cargo_subcommand_args() -> Vec<OsString> {
 
     args.extend(raw_args);
     args
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn os_args(args: &[&str]) -> Vec<OsString> {
+        args.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn direct_cargo_rustuse_args_are_preserved() {
+        assert_eq!(
+            normalize_cargo_subcommand_args(os_args(&["cargo-rustuse", "report", "."])),
+            os_args(&["cargo-rustuse", "report", "."])
+        );
+    }
+
+    #[test]
+    fn cargo_subcommand_name_is_stripped() {
+        assert_eq!(
+            normalize_cargo_subcommand_args(os_args(&["cargo-rustuse", "rustuse", "report", ".",])),
+            os_args(&["cargo-rustuse", "report", "."])
+        );
+    }
+
+    #[test]
+    fn cargo_help_subcommand_shape_is_supported() {
+        assert_eq!(
+            normalize_cargo_subcommand_args(os_args(&["cargo-rustuse", "rustuse", "--help",])),
+            os_args(&["cargo-rustuse", "--help"])
+        );
+    }
 }

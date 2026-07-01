@@ -548,17 +548,6 @@ fn write_tooling_configuration(markdown: &mut String, tooling_report: &ToolingSu
     write_presence_table(markdown, &tooling_report.surface);
 }
 
-fn write_development_environment(
-    markdown: &mut String,
-    // development_report: &DevelopmentSurfaceReport,
-) {
-    markdown.push_str("## Development Environment\n\n");
-
-    markdown.push_str("- Status: **unknown**\n");
-    markdown.push_str("- Present: `0/0`\n\n");
-    // write_presence_table(markdown, &development_report.surface);
-}
-
 fn write_ci_cd_surface(
     markdown: &mut String,
     github_report: &GitHubWorkflowReport,

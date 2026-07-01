@@ -14,6 +14,7 @@ pub mod facade;
 pub mod ferris;
 pub mod info;
 pub mod init;
+pub mod interactive;
 pub mod list;
 pub mod report;
 pub mod scan;
@@ -63,8 +64,6 @@ pub enum Commands {
     /// Manage RustUse catalog generation and validation.
     Catalog(catalog::CatalogArgs),
 
-    // / Ferris command for managing RustUse source copying.
-    // Ferris(ferris::FerrisArgs),
     /// Print a friendly greeting from Ferris.
     #[command(visible_alias = "🦀")]
     Ferris(ferris::FerrisArgs),
@@ -81,6 +80,13 @@ pub fn run(cli: Cli) -> Result<()> {
     let output = Output::new(cli.json, cli.quiet, cli.verbose);
 
     match cli.command {
+        Some(command) => run_command(command, output),
+        None => interactive::run(output, cli.non_interactive),
+    }
+}
+
+fn run_command(command: Commands, output: Output) -> Result<()> {
+    match command {
         Commands::Init(args) => init::run(args, output),
         Commands::Search(args) => search::run(args, output),
         Commands::Info(args) => info::run(args, output),

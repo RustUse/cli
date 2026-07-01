@@ -1,9 +1,3 @@
-/* //! Data model for `.github` consistency checks.
-
-use std::path::{Path, PathBuf};
-
-use crate::dev::github::issue::{GithubIssue, GithubIssueSeverity}; */
-
 //! Data model for `.github` consistency checks.
 
 use std::path::{Path, PathBuf};
