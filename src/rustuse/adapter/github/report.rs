@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Report rendering for `.github` consistency checks.
 
 use std::fmt::Write;

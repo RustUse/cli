@@ -4,13 +4,25 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-use crate::manifest;
+// use crate::rustuse::facade::manifest;
 
 pub const CONFIG_FILE: &str = "rustuse.toml";
 pub const CARGO_FILE: &str = "Cargo.toml";
 pub const STATE_DIR: &str = ".rustuse";
 pub const CACHE_DIR: &str = ".rustuse/cache";
 pub const SNAPSHOTS_DIR: &str = ".rustuse/snapshots";
+
+pub const LOCK_FILE: &str = "rustuse.lock";
+
+#[must_use]
+pub fn lock_path(root: impl AsRef<Path>) -> PathBuf {
+    root.as_ref().join(LOCK_FILE)
+}
+
+#[must_use]
+pub fn lock_exists(root: impl AsRef<Path>) -> bool {
+    lock_path(root).is_file()
+}
 
 #[derive(Clone, Debug)]
 pub struct ProjectState {
@@ -37,7 +49,7 @@ pub fn detect(root: impl AsRef<Path>) -> ProjectState {
     let root = root.as_ref();
     let cargo_toml_path = root.join(CARGO_FILE);
     let config_path = config_path(root);
-    let lock_path = manifest::lock_path(root);
+    let lock_path = lock_path(root);
     let state_dir_path = root.join(STATE_DIR);
     let cache_dir_path = root.join(CACHE_DIR);
     let snapshots_dir_path = root.join(SNAPSHOTS_DIR);
@@ -45,7 +57,7 @@ pub fn detect(root: impl AsRef<Path>) -> ProjectState {
     ProjectState {
         has_cargo_toml: cargo_toml_path.is_file(),
         has_config: config_path.is_file(),
-        has_lock: manifest::lock_exists(root),
+        has_lock: lock_exists(root),
         has_state_dir: state_dir_path.is_dir(),
         has_cache_dir: cache_dir_path.is_dir(),
         has_snapshots_dir: snapshots_dir_path.is_dir(),

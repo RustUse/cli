@@ -6,20 +6,19 @@ use std::path::Path;
 use anyhow::Result;
 
 use super::discover::{FacadeInfo, discover_facade};
-use super::inspect::{FacadeRepositoryReport, inspect_facade_repository};
 use crate::output::Output;
 use crate::rustuse::adapter::github::workflows::{GitHubWorkflowReport, inspect_github_workflows};
 use crate::rustuse::adapter::gitlab::{GitLabReport, inspect_gitlab};
-use crate::rustuse::utils::artifacts::{GeneratedArtifactReport, inspect_generated_artifacts};
-// use crate::rustuse::utils::development::{DevelopmentSurfaceReport, inspect_development_surface};
 use crate::rustuse::facade::documentation::{
     DocumentationSurfaceReport, inspect_documentation_surface,
 };
+use crate::rustuse::facade::inspect::{FacadeRepositoryReport, inspect_facade_repository};
 use crate::rustuse::facade::manifest::{FacadeManifestReport, analyze_facade_repository_manifests};
 use crate::rustuse::facade::nonstandard::{
     NonStandardPathKind, NonStandardPathReport, NonStandardPathRule, inspect_non_standard_paths,
 };
 use crate::rustuse::facade::release::{ReleaseSurfaceReport, inspect_release_surface};
+use crate::rustuse::utils::artifacts::{GeneratedArtifactReport, inspect_generated_artifacts};
 use crate::rustuse::utils::report::{
     markdown_path, resolve_report_path, write_markdown_report, write_presence_table, yes_no,
 };
@@ -30,53 +29,6 @@ const FACADE_NON_STANDARD_PATHS: &[NonStandardPathRule] = &[NonStandardPathRule 
     kind: NonStandardPathKind::Directory,
     recommendation: "Move facade documentation to the central docs repository.",
 }];
-
-/* pub(crate) fn run(args: DevFacadeReportArgs, output: Output) -> Result<()> {
-    let facade = discover_facade(&args.root)?;
-    let manifest_report = analyze_facade_repository_manifests(&facade.root, &facade.name)?;
-    let repository_report = inspect_facade_repository(&facade);
-    let github_workflow_report = inspect_github_workflows(&facade.root);
-    let gitlab_report = inspect_gitlab(&facade.root);
-    let release_report = inspect_release_surface(&facade.root);
-    let documentation_report = inspect_documentation_surface(&facade.root);
-    let development_report = inspect_development_surface(&facade.root);
-    let tooling_report = inspect_tooling_surface(&facade.root);
-    let non_standard_path_report =
-        inspect_non_standard_paths(&facade.root, FACADE_NON_STANDARD_PATHS);
-    let artifact_report = inspect_generated_artifacts(&facade.root);
-
-    let report = build_report(
-        &facade,
-        &manifest_report,
-        &repository_report,
-        &github_workflow_report,
-        &gitlab_report,
-        &release_report,
-        &documentation_report,
-        &development_report,
-        &tooling_report,
-        &non_standard_path_report,
-        &artifact_report,
-    );
-
-    output.line(format!(
-        "RustUse dev facade report - root: {}",
-        facade.root.display()
-    ));
-
-    if args.stdout {
-        print!("{report}");
-        return Ok(());
-    }
-
-    let output_path = resolve_report_path(&facade.root, args.output);
-
-    write_markdown_report(&output_path, &report)?;
-
-    output.line(format!("wrote: {}", output_path.display()));
-
-    Ok(())
-} */
 
 #[allow(clippy::too_many_arguments)]
 fn build_report(
@@ -938,7 +890,7 @@ fn crate_documentation_warning_count(facade: &FacadeInfo) -> usize {
         .count()
 }
 
-pub(crate) fn run_path(root: &Path, output: Output) -> Result<()> {
+pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()> {
     let facade = discover_facade(root)?;
     let manifest_report = analyze_facade_repository_manifests(&facade.root, &facade.name)?;
     let repository_report = inspect_facade_repository(&facade);

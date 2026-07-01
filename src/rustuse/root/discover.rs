@@ -1,11 +1,11 @@
 //! Discovery helpers for a local RustUse development root.
 
-use std::fs;
+/* use std::fs;
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result}; */
 
-const ROOT_REPOS: &[&str] = &[
+/* const ROOT_REPOS: &[&str] = &[
     ".github",
     ".github-private",
     "cli",
@@ -17,14 +17,14 @@ const ROOT_REPOS: &[&str] = &[
 
 const GIT_DIR_NAME: &str = ".git";
 const CARGO_MANIFEST_FILE_NAME: &str = "Cargo.toml";
-const CRATES_DIR_NAME: &str = "crates";
+const CRATES_DIR_NAME: &str = "crates"; */
 
-#[derive(Debug, Clone)]
+/* #[derive(Debug, Clone)]
 pub(crate) struct RootRepoEntry {
     pub(crate) name: &'static str,
     pub(crate) present: bool,
     pub(crate) has_git: bool,
-}
+} */
 
 /* impl RootRepoEntry {
     pub(crate) fn present(&self) -> bool {
@@ -44,7 +44,7 @@ pub(crate) struct RootRepoEntry {
     }
 } */
 
-#[derive(Debug, Clone)]
+/* #[derive(Debug, Clone)]
 pub(crate) struct FacadeEntry {
     pub(crate) name: String,
     pub(crate) version: Option<String>,
@@ -217,4 +217,4 @@ fn count_child_crates(crates_dir: &Path) -> Result<usize> {
     }
 
     Ok(count)
-}
+} */

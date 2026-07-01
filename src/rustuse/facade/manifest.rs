@@ -460,7 +460,7 @@ fn analyze_package_table(
     for field in REQUIRED_PACKAGE_FIELDS {
         if !package.contains_key(*field) {
             report.issues.push(ManifestIssue::warning(
-                missing_package_field_code(*field),
+                missing_package_field_code(field),
                 format!("missing [package].{field}"),
             ));
         }
@@ -573,10 +573,7 @@ fn validate_workspace_inherited_package_fields(
         check_workspace_inherited_package_field(package, field, report);
     }
 
-    if package
-        .get("lints")
-        .is_some_and(|value| is_workspace_true(value))
-    {
+    if package.get("lints").is_some_and(is_workspace_true) {
         return;
     }
 
@@ -863,15 +860,14 @@ fn validate_crate_workspace_dependencies(
 
         if let (Some(expected_version), Some(actual_version)) =
             (crate_info.version.as_deref(), actual_version)
+            && actual_version != expected_version
         {
-            if actual_version != expected_version {
-                report.issues.push(ManifestIssue::warning(
-                    MISMATCHED_WORKSPACE_DEPENDENCY_VERSION,
-                    format!(
-                        "expected [workspace.dependencies].{dependency_name}.version = `{expected_version}`, found `{actual_version}`"
-                    ),
-                ));
-            }
+            report.issues.push(ManifestIssue::warning(
+                MISMATCHED_WORKSPACE_DEPENDENCY_VERSION,
+                format!(
+                    "expected [workspace.dependencies].{dependency_name}.version = `{expected_version}`, found `{actual_version}`"
+                ),
+            ));
         }
     }
 }
@@ -1049,13 +1045,22 @@ fn validate_facade_features(
     for child_crate in child_crate_names {
         let feature_name = feature_name_for_child_crate(child_crate);
 
-        if let Some(full_features) = &full_features {
+        /* if let Some(full_features) = &full_features {
             if !full_features.contains(feature_name.as_str()) {
                 report.issues.push(ManifestIssue::warning(
                     MISSING_FULL_FEATURE_MEMBER,
                     format!("expected [features].full to include `{feature_name}`"),
                 ));
             }
+        } */
+
+        if let Some(full_features) = &full_features
+            && !full_features.contains(feature_name.as_str())
+        {
+            report.issues.push(ManifestIssue::warning(
+                MISSING_FULL_FEATURE_MEMBER,
+                format!("expected [features].full to include `{feature_name}`"),
+            ));
         }
 
         let Some(feature_values) = features

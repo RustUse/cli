@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 /* //! Data model for `.github` consistency checks.
 
 use std::path::{Path, PathBuf};

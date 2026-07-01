@@ -1,22 +1,3 @@
-/* use std::path::PathBuf;
-
-use anyhow::Result;
-use clap::Args;
-
-use crate::{output::Output, rustuse};
-
-#[derive(Debug, Args)]
-pub struct ScanArgs {
-    /// RustUse root path to scan.
-    #[arg(default_value = ".", value_name = "ROOT")]
-    pub root: PathBuf,
-}
-
-pub fn run(args: ScanArgs, output: Output) -> Result<()> {
-    rustuse::root::scan::run_path(args.root, output)
-}
- */
-
 use std::path::PathBuf;
 
 use anyhow::Result;

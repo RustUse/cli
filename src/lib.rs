@@ -13,10 +13,7 @@ use std::ffi::{OsStr, OsString};
 
 mod cli;
 mod commands;
-mod config;
-mod manifest;
 mod output;
-mod project;
 mod rustuse;
 
 use anyhow::Result;

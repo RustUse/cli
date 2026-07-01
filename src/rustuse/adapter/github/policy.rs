@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Standard RustUse `.github` policy.
 
 /* use crate::dev::github::model::{GithubFileKind, RequiredGithubFile};

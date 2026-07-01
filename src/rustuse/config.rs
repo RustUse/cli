@@ -6,51 +6,76 @@ use serde::{Deserialize, Serialize};
 pub const CONFIG_VERSION: u32 = 1;
 pub const DEFAULT_LICENSE: &str = "MIT OR Apache-2.0";
 
+impl fmt::Display for ProjectKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Project => "project",
+            Self::Facade => "facade",
+        };
+
+        formatter.write_str(value)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RustUseConfig {
     pub version: u32,
     pub project: ProjectConfig,
-    pub updates: UpdatesConfig,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facade: Option<FacadeConfig>,
+
+    #[serde(default)]
+    pub tracking: TrackingConfig,
+
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub primitives: Vec<PrimitiveConfig>,
 }
 
 impl RustUseConfig {
     #[must_use]
-    pub fn cargo_first() -> Self {
+    pub fn cargo_first(project_name: String) -> Self {
         Self {
             version: CONFIG_VERSION,
-            project: ProjectConfig::cargo_first(),
-            updates: UpdatesConfig::default(),
+            project: ProjectConfig::cargo_first(project_name),
+            facade: None,
+            tracking: TrackingConfig::default(),
             primitives: Vec::new(),
         }
     }
 
     #[must_use]
-    pub fn copy_first() -> Self {
+    pub fn copy_first(project_name: String) -> Self {
         Self {
             version: CONFIG_VERSION,
-            project: ProjectConfig::copy_first(),
-            updates: UpdatesConfig::default(),
+            project: ProjectConfig::copy_first(project_name),
+            facade: None,
+            tracking: TrackingConfig::default(),
             primitives: Vec::new(),
         }
     }
 
     #[must_use]
-    pub fn with_roots(mut self, copy_root: Option<String>, test_root: Option<String>) -> Self {
-        if let Some(copy_root) = copy_root {
-            self.project.copy_root = copy_root;
+    pub fn facade(project_name: String, homepage: String) -> Self {
+        Self {
+            version: CONFIG_VERSION,
+            project: ProjectConfig::facade(project_name.clone()),
+            facade: Some(FacadeConfig {
+                name: project_name,
+                crates_dir: String::from("crates"),
+                homepage,
+            }),
+            tracking: TrackingConfig::default(),
+            primitives: Vec::new(),
         }
-        if let Some(test_root) = test_root {
-            self.project.test_root = test_root;
-        }
-        self
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProjectConfig {
-    pub default_mode: AdoptionMode,
+    pub name: String,
+    pub kind: ProjectKind,
+    pub default_adoption: AdoptionMode,
     pub copy_root: String,
     pub test_root: String,
     pub license: String,
@@ -58,9 +83,11 @@ pub struct ProjectConfig {
 
 impl ProjectConfig {
     #[must_use]
-    pub fn cargo_first() -> Self {
+    pub fn cargo_first(name: String) -> Self {
         Self {
-            default_mode: AdoptionMode::Cargo,
+            name,
+            kind: ProjectKind::Project,
+            default_adoption: AdoptionMode::Cargo,
             copy_root: String::from("src"),
             test_root: String::from("tests"),
             license: String::from(DEFAULT_LICENSE),
@@ -68,27 +95,55 @@ impl ProjectConfig {
     }
 
     #[must_use]
-    pub fn copy_first() -> Self {
+    pub fn copy_first(name: String) -> Self {
         Self {
-            default_mode: AdoptionMode::Copy,
+            name,
+            kind: ProjectKind::Project,
+            default_adoption: AdoptionMode::Copy,
             copy_root: String::from("src/rustuse"),
             test_root: String::from("tests/rustuse"),
             license: String::from(DEFAULT_LICENSE),
         }
     }
+
+    #[must_use]
+    pub fn facade(name: String) -> Self {
+        Self {
+            name,
+            kind: ProjectKind::Facade,
+            default_adoption: AdoptionMode::Cargo,
+            copy_root: String::from("src"),
+            test_root: String::from("tests"),
+            license: String::from(DEFAULT_LICENSE),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProjectKind {
+    Project,
+    Facade,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UpdatesConfig {
-    pub check_copied: bool,
-    pub write_candidates: bool,
+pub struct FacadeConfig {
+    pub name: String,
+    pub crates_dir: String,
+    pub homepage: String,
 }
 
-impl Default for UpdatesConfig {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TrackingConfig {
+    pub snapshots: bool,
+    pub cache: bool,
+}
+
+impl Default for TrackingConfig {
     fn default() -> Self {
         Self {
-            check_copied: true,
-            write_candidates: true,
+            snapshots: true,
+            cache: true,
         }
     }
 }
@@ -128,9 +183,11 @@ pub struct PrimitiveConfig {
 
 pub fn to_toml(config: &RustUseConfig) -> Result<String> {
     let mut raw = toml::to_string_pretty(config).context("failed to serialize rustuse.toml")?;
+
     if !raw.ends_with('\n') {
         raw.push('\n');
     }
+
     Ok(raw)
 }
 

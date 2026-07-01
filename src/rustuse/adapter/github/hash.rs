@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Deterministic content hashing helpers for `.github` consistency checks.
 //!
 //! These hashes are used for drift detection and report output only. They are

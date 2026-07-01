@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 /* //! Check `.github` directory consistency for RustUse facade repositories.
 
 use std::fs;

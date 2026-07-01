@@ -7,7 +7,6 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-// use super::DevRootReportArgs;
 use crate::output::Output;
 use crate::rustuse::facade::discover::{FacadeEntry, discover_facades, discover_root_repos};
 use crate::rustuse::facade::flags::manifest_shape_bucket;
@@ -15,57 +14,6 @@ use crate::rustuse::facade::manifest::{FacadeManifestReport, analyze_manifests};
 use crate::rustuse::facade::standards::{StandardFileReport, analyze_exact_standard_files};
 
 const TOP_MANIFEST_OFFENDER_LIMIT: usize = 15;
-
-/* use std::collections::BTreeMap;
-use std::fs::{self, File};
-use std::io::{BufWriter, Write};
-use std::path::Path;
-
-use anyhow::{Context, Result};
-
-use crate::cli::DevRootReportArgs;
-use crate::dev::root::discover::{FacadeEntry, discover_facades, discover_root_repos};
-use crate::dev::root::manifest_flags::manifest_shape_bucket;
-use crate::dev::root::manifests::{FacadeManifestReport, analyze_manifests};
-use crate::dev::root::standards::{StandardFileReport, analyze_exact_standard_files};
-use crate::output::Output; */
-
-/* pub(crate) fn run_path(path: &Path, output: Output) -> Result<()> {
-    let report = build_report(path)?;
-
-    if output.is_json() {
-        output.record("dev report", report.status(), &report.summary_message());
-    } else {
-        println!("{}", report.to_markdown());
-    }
-
-    Ok(())
-} */
-
-/* pub(crate) fn run(args: DevRootReportArgs, output: Output) -> Result<()> {
-    let root = fs::canonicalize(&args.root).unwrap_or(args.root);
-    let report = build_report(&root)?;
-
-    output.line(format!(
-        "RustUse dev root report - root: {}",
-        root.display()
-    ));
-
-    if args.stdout {
-        print!("{report}");
-        return Ok(());
-    }
-
-    let output_path = args
-        .output
-        .unwrap_or_else(|| root.join("rustuse-report.md"));
-
-    write_report(&output_path, &report)?;
-
-    output.line(format!("wrote: {}", output_path.display()));
-
-    Ok(())
-} */
 
 fn write_report(path: &Path, report: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -556,63 +504,6 @@ fn write_manifest_shape_summary(markdown: &mut String, reports: &[FacadeManifest
     markdown.push('\n');
 }
 
-/* fn manifest_shape_bucket(code: &str) -> &'static str {
-    match code {
-        "missing-standard-workspace-member"
-        | "non-standard-workspace-members"
-        | "missing-workspace"
-        | "missing-workspace-members"
-        | "invalid-workspace-members"
-        | "missing-workspace-resolver"
-        | "workspace-resolver"
-        | "missing-workspace-package"
-        | "missing-workspace-package-field"
-        | "invalid-workspace-repository"
-        | "missing-workspace-dependencies"
-        | "missing-workspace-dependency"
-        | "invalid-workspace-dependency"
-        | "invalid-workspace-dependency-path"
-        | "missing-workspace-dependency-path"
-        | "missing-workspace-dependency-version"
-        | "missing-workspace-unsafe-code-policy"
-        | "invalid-workspace-unsafe-code-policy"
-        | "missing-workspace-clippy-lints" => "Workspace shape",
-
-        "missing-facade-dependencies"
-        | "missing-facade-child-dependency"
-        | "invalid-facade-child-dependency"
-        | "missing-facade-child-dependency-optional"
-        | "missing-facade-features"
-        | "invalid-facade-default-features"
-        | "missing-facade-default-features"
-        | "missing-facade-full-feature"
-        | "missing-full-feature-member"
-        | "missing-facade-child-feature"
-        | "invalid-facade-child-feature" => "Facade wiring",
-
-        "invalid-package-homepage"
-        | "invalid-package-documentation"
-        | "missing-package-readme-file"
-        | "missing-docs-rs-all-features"
-        | "invalid-docs-rs-all-features"
-        | "missing-lints-workspace"
-        | "package-name-directory-mismatch"
-        | "invalid-facade-package-name"
-        | "invalid-child-package-name" => "Package shape",
-
-        "invalid-category-slug"
-        | "too-many-categories"
-        | "duplicate-category"
-        | "invalid-categories-shape"
-        | "invalid-category-value"
-        | "missing-workspace-categories"
-        | "missing-package-categories"
-        | "missing-inherited-categories" => "Category metadata",
-
-        _ => "General metadata",
-    }
-} */
-
 fn write_manifest_top_offenders(
     markdown: &mut String,
     reports: &[FacadeManifestReport],
@@ -661,50 +552,6 @@ fn write_manifest_top_offenders(
 
     markdown.push('\n');
 }
-
-/* fn write_manifest_issues(markdown: &mut String, reports: &[FacadeManifestReport]) {
-    let reports_with_issues = reports
-        .iter()
-        .filter(|report| report.issue_count() > 0)
-        .collect::<Vec<_>>();
-
-    if reports_with_issues.is_empty() {
-        return;
-    }
-
-    markdown.push_str("### Manifest Issues\n\n");
-
-    for facade_report in reports_with_issues {
-        markdown.push_str(&format!("#### `{}`\n\n", facade_report.facade_name));
-
-        for manifest in &facade_report.manifests {
-            if manifest.issues.is_empty() {
-                continue;
-            }
-
-            markdown.push_str(&format!("##### `{}`\n\n", manifest.path.display()));
-            markdown.push_str(&format!("- Kind: `{}`\n", manifest.kind.as_str()));
-            markdown.push_str(&format!("- Status: **{}**\n", manifest.status()));
-
-            if let Some(package_name) = &manifest.package_name {
-                markdown.push_str(&format!("- Package: `{package_name}`\n"));
-            }
-
-            markdown.push_str("- Issues:\n");
-
-            for issue in &manifest.issues {
-                markdown.push_str(&format!(
-                    "  - **{}** `{}`: {}\n",
-                    issue.severity.as_str(),
-                    issue.code,
-                    issue.message
-                ));
-            }
-
-            markdown.push('\n');
-        }
-    }
-} */
 
 fn write_standard_file_report(
     markdown: &mut String,
@@ -788,24 +635,8 @@ fn display_markdown_version(version: &Option<String>) -> String {
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
-/*
-pub(crate) fn run_path(root: &Path, output: Output) -> Result<()> {
-    let report = build_report(root)?;
 
-    if output.is_json() {
-        output.record(
-            "report",
-            "ok",
-            &format!("generated RustUse root report for {}", root.display()),
-        );
-    } else {
-        output.line(report);
-    }
-
-    Ok(())
-} */
-
-pub(crate) fn run_path(root: &Path, output: Output) -> Result<()> {
+pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()> {
     let root = fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
     let report = build_report(&root)?;
     let output_path = root.join("rustuse-root-report.md");

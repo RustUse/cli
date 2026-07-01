@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Issue model for `.github` consistency checks.
 
 use std::fmt;

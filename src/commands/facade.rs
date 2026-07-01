@@ -1,37 +1,3 @@
-/* use std::path::PathBuf;
-
-use anyhow::Result;
-use clap::{Args, Subcommand};
-
-use crate::{output::Output, rustuse};
-
-#[derive(Debug, Args)]
-#[command(arg_required_else_help = true)]
-pub struct FacadeArgs {
-    #[command(subcommand)]
-    pub command: FacadeCommand,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum FacadeCommand {
-    /// Generate a report for one RustUse facade repository.
-    Report(FacadeReportArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct FacadeReportArgs {
-    /// Facade repository root.
-    #[arg(default_value = ".", value_name = "ROOT")]
-    pub root: PathBuf,
-}
-
-pub fn run(args: FacadeArgs, output: Output) -> Result<()> {
-    match args.command {
-        FacadeCommand::Report(args) => rustuse::facade::report::run_path(&args.root, output),
-    }
-}
- */
-
 use std::path::PathBuf;
 
 use anyhow::Result;

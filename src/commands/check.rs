@@ -1,34 +1,3 @@
-/* use std::path::PathBuf;
-
-use anyhow::Result;
-use clap::Args;
-
-use crate::output::Output;
-
-#[derive(Debug, Args)]
-pub struct CheckArgs {
-    /// RustUse project path to check.
-    #[arg(default_value = ".")]
-    pub path: PathBuf,
-}
-
-pub fn run(args: CheckArgs, _output: Output) -> Result<()> {
-    let report = rustuse::root::dev::check::check(&args.path)?;
-
-    println!("{}", report.to_text());
-
-    if report.is_clean() {
-        Ok(())
-    } else {
-        bail!("RustUse dev check failed")
-    }
-
-    println!("check.rs works: {}", args.path.display());
-
-    Ok(())
-}
- */
-
 use std::path::PathBuf;
 
 use anyhow::Result;
