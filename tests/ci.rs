@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{CliBinary, run_help, run_raw};
+use common::{CliBinary, run_help, run_raw, run_success};
 
 #[test]
 fn ci_help_lists_workflows() {
@@ -25,5 +25,16 @@ fn ci_without_subcommand_fails() {
     assert!(
         !output.status.success(),
         "bare `ci` should require a subcommand"
+    );
+}
+
+#[test]
+fn ci_check_marks_staged_behavior() {
+    let bin = CliBinary::rustuse();
+    let stdout = run_success(&bin, &["ci", "check"]);
+
+    assert!(
+        stdout.contains("staged=true"),
+        "ci check output should mark staged behavior:\n{stdout}"
     );
 }

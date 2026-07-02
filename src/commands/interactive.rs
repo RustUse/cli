@@ -22,8 +22,23 @@ use super::report::{self, ReportArgs, ReportKind};
 use super::scan::{self, ScanArgs, ScanKind};
 use super::search::{self, SearchArgs};
 
-pub(crate) fn run(output: Output, non_interactive: bool) -> Result<()> {
-    if non_interactive || !std::io::stdin().is_terminal() {
+pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()> {
+    if non_interactive {
+        bail!("a command is required when running non-interactively; try `rustuse --help`");
+    }
+
+    if yes {
+        output.detail("--yes selected; running `rustuse doctor .` with safe defaults");
+
+        return doctor::run(
+            DoctorArgs {
+                path: PathBuf::from("."),
+            },
+            output,
+        );
+    }
+
+    if !std::io::stdin().is_terminal() {
         bail!("a command is required when running non-interactively; try `rustuse --help`");
     }
 

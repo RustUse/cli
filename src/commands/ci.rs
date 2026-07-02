@@ -50,14 +50,14 @@ pub struct CiReportArgs {
 pub fn run(args: CiArgs, output: Output) -> Result<()> {
     match args.command {
         CiCommand::Check(args) => {
-            placeholder(output, "ci check", format!("path={}", args.path.display()))
+            staged(output, "ci check", format!("path={}", args.path.display()))
         },
-        CiCommand::GithubActions(args) => placeholder(
+        CiCommand::GithubActions(args) => staged(
             output,
             "ci github-actions",
             format!("path={}", args.path.display()),
         ),
-        CiCommand::TrustedPublishing(args) => placeholder(
+        CiCommand::TrustedPublishing(args) => staged(
             output,
             "ci trusted-publishing",
             format!("path={}", args.path.display()),
@@ -69,11 +69,16 @@ pub fn run(args: CiArgs, output: Output) -> Result<()> {
                 .map(|path| path.display().to_string())
                 .unwrap_or_else(|| "<default>".to_owned());
 
-            placeholder(
+            staged(
                 output,
                 "ci report",
                 format!("path={}, output={}", args.path.display(), report_output),
             )
         },
     }
+}
+
+fn staged(output: Output, command: &str, detail: String) -> Result<()> {
+    let staged_detail = format!("staged=true, {detail}");
+    placeholder(output, command, staged_detail)
 }

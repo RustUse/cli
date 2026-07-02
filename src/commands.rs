@@ -81,7 +81,7 @@ pub fn run(cli: Cli) -> Result<()> {
 
     match cli.command {
         Some(command) => run_command(command, output),
-        None => interactive::run(output, cli.non_interactive),
+        None => interactive::run(output, cli.non_interactive, cli.yes),
     }
 }
 

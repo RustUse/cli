@@ -51,3 +51,20 @@ fn non_interactive_without_command_fails() {
         "stderr missing helpful message:\n{stderr}"
     );
 }
+
+#[test]
+fn yes_without_command_runs_safe_default_workflow() {
+    let bin = CliBinary::rustuse();
+    let output = run_raw(&bin, &["--yes"]);
+
+    assert!(
+        output.status.success(),
+        "expected success when no command is given with --yes"
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("RustUse doctor"),
+        "stdout missing doctor output:\n{stdout}"
+    );
+}
