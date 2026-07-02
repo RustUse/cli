@@ -19,15 +19,8 @@ pub const CARGO_CONFIG_DIR: &str = ".cargo";
 pub const GITHUB_DIR: &str = ".github";
 pub const GITLAB_DIR: &str = ".gitlab";
 pub const DEVCONTAINER_DIR: &str = ".devcontainer";
-pub const VSCODE_DIR: &str = ".vscode";
 
 pub const CRATES_DIR: &str = "crates";
-pub const SRC_DIR: &str = "src";
-pub const TESTS_DIR: &str = "tests";
-pub const EXAMPLES_DIR: &str = "examples";
-pub const DOCS_DIR: &str = "docs";
-pub const TARGET_DIR: &str = "target";
-pub const SCRIPTS_DIR: &str = "scripts";
 
 // -----------------------------------------------------------------------------
 // Common root file names

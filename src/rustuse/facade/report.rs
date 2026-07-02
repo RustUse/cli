@@ -20,7 +20,8 @@ use crate::rustuse::facade::nonstandard::{
 use crate::rustuse::facade::release::{ReleaseSurfaceReport, inspect_release_surface};
 use crate::rustuse::utils::artifacts::{GeneratedArtifactReport, inspect_generated_artifacts};
 use crate::rustuse::utils::report::{
-    markdown_path, resolve_report_path, write_markdown_report, write_presence_table, yes_no,
+    ReportDestination, emit_markdown_to_stdout, markdown_path, resolve_report_path,
+    write_markdown_report, write_presence_table, yes_no,
 };
 use crate::rustuse::utils::tooling::{ToolingSurfaceReport, inspect_tooling_surface};
 
@@ -879,7 +880,11 @@ fn crate_documentation_warning_count(facade: &FacadeInfo) -> usize {
         .count()
 }
 
-pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()> {
+pub(crate) fn generate_markdown_report(
+    root: &Path,
+    output: Output,
+    destination: ReportDestination,
+) -> Result<()> {
     let facade = discover_facade(root)?;
     let manifest_report = analyze_facade_repository_manifests(&facade.root, &facade.name)?;
     let repository_report = inspect_facade_repository(&facade);
@@ -907,22 +912,29 @@ pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()
         &artifact_report,
     );
 
-    let output_path = resolve_report_path(&facade.root, None);
+    match destination {
+        ReportDestination::Stdout => {
+            emit_markdown_to_stdout(&report);
+        },
+        ReportDestination::File(path) => {
+            let output_path = resolve_report_path(&facade.root, path);
 
-    write_markdown_report(&output_path, &report)?;
+            write_markdown_report(&output_path, &report)?;
 
-    if output.is_json() {
-        output.record(
-            "facade report",
-            "ok",
-            &format!("wrote {}", output_path.display()),
-        );
-    } else {
-        output.line(format!(
-            "RustUse facade report - root: {}",
-            facade.root.display()
-        ));
-        output.line(format!("wrote: {}", output_path.display()));
+            if output.is_json() {
+                output.record(
+                    "facade report",
+                    "ok",
+                    &format!("wrote {}", output_path.display()),
+                );
+            } else {
+                output.line(format!(
+                    "RustUse facade report - root: {}",
+                    facade.root.display()
+                ));
+                output.line(format!("wrote: {}", output_path.display()));
+            }
+        },
     }
 
     Ok(())

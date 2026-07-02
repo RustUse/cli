@@ -15,8 +15,8 @@ pub struct SearchArgs {
 }
 
 pub fn run(args: SearchArgs, output: Output) -> Result<()> {
-    let total_entries = catalog::all_entries()?.len();
-    let matches = catalog::search(&args.query)?;
+    let total_entries = catalog::all_entries().len();
+    let matches = catalog::search(&args.query);
     let limited_matches: Vec<_> = matches.into_iter().take(args.limit).collect();
 
     if limited_matches.is_empty() {

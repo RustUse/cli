@@ -1,12 +1,9 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 
-use crate::{output::Output, rustuse};
+use crate::{output::Output, rustuse, rustuse::utils::report::ReportDestination};
 
 use super::placeholder;
 
@@ -19,6 +16,10 @@ pub struct ReportArgs {
     /// Report target kind.
     #[arg(long, value_enum, default_value_t = ReportKind::Auto)]
     pub kind: ReportKind,
+
+    /// Print the report to standard output instead of writing a file.
+    #[arg(long, conflicts_with = "output")]
+    pub stdout: bool,
 
     /// Optional output file.
     ///
@@ -45,10 +46,16 @@ pub fn run(args: ReportArgs, output: Output) -> Result<()> {
         ));
     }
 
+    let destination = report_destination(&args);
+
     match args.kind {
-        ReportKind::Auto => run_auto(&args.path, output),
-        ReportKind::Facade => rustuse::facade::report::generate_markdown_report(&args.path, output),
-        ReportKind::Root => rustuse::root::report::generate_markdown_report(&args.path, output),
+        ReportKind::Auto => run_auto(&args.path, output, destination),
+        ReportKind::Facade => {
+            rustuse::facade::report::generate_markdown_report(&args.path, output, destination)
+        },
+        ReportKind::Root => {
+            rustuse::root::report::generate_markdown_report(&args.path, output, destination)
+        },
         ReportKind::Catalog => placeholder(
             output,
             "report",
@@ -70,59 +77,20 @@ pub fn run(args: ReportArgs, output: Output) -> Result<()> {
     }
 }
 
-fn run_auto(path: &Path, output: Output) -> Result<()> {
-    let resolved = resolve_existing_path(path);
-
-    if is_facade(&resolved) {
-        rustuse::facade::report::generate_markdown_report(path, output)
+fn report_destination(args: &ReportArgs) -> ReportDestination {
+    if args.stdout {
+        ReportDestination::Stdout
     } else {
-        rustuse::root::report::generate_markdown_report(path, output)
+        ReportDestination::File(args.output.clone())
     }
 }
 
-fn is_facade(path: &Path) -> bool {
-    has_facade_shape(path) && (has_facade_directory_name(path) || has_facade_package_name(path))
-}
-
-fn has_facade_shape(path: &Path) -> bool {
-    path.join("Cargo.toml").is_file() && path.join("crates").is_dir()
-}
-
-fn has_facade_directory_name(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.starts_with("use-"))
-}
-
-fn has_facade_package_name(path: &Path) -> bool {
-    let manifest_path = path.join("Cargo.toml");
-    let Ok(raw) = fs::read_to_string(manifest_path) else {
-        return false;
-    };
-
-    let Ok(manifest) = toml::from_str::<toml::Value>(&raw) else {
-        return false;
-    };
-
-    manifest
-        .get("package")
-        .and_then(|package| package.get("name"))
-        .and_then(toml::Value::as_str)
-        .is_some_and(|name| name.starts_with("use-"))
-}
-
-fn resolve_existing_path(path: &Path) -> PathBuf {
-    if let Ok(canonical) = fs::canonicalize(path) {
-        return canonical;
+fn run_auto(path: &Path, output: Output, destination: ReportDestination) -> Result<()> {
+    if rustuse::facade::discover::looks_like_facade(path) {
+        rustuse::facade::report::generate_markdown_report(path, output, destination)
+    } else {
+        rustuse::root::report::generate_markdown_report(path, output, destination)
     }
-
-    if path.is_absolute() {
-        return path.to_path_buf();
-    }
-
-    env::current_dir()
-        .map(|current_dir| current_dir.join(path))
-        .unwrap_or_else(|_| path.to_path_buf())
 }
 
 fn output_path_label(path: Option<&Path>) -> String {

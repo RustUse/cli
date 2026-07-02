@@ -12,6 +12,7 @@ use crate::rustuse::facade::discover::{FacadeEntry, discover_facades, discover_r
 use crate::rustuse::facade::flags::manifest_shape_bucket;
 use crate::rustuse::facade::manifest::{FacadeManifestReport, analyze_manifests};
 use crate::rustuse::facade::standards::{StandardFileReport, analyze_exact_standard_files};
+use crate::rustuse::utils::report::{ReportDestination, emit_markdown_to_stdout};
 
 const TOP_MANIFEST_OFFENDER_LIMIT: usize = 15;
 
@@ -636,35 +637,48 @@ fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
 
-pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()> {
+pub(crate) fn generate_markdown_report(
+    root: &Path,
+    output: Output,
+    destination: ReportDestination,
+) -> Result<()> {
     let root = fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
     let report = build_report(&root)?;
-    let output_path = root.join("rustuse-root-report.md");
 
-    if output.is_json() {
-        write_report(&output_path, &report)?;
+    match destination {
+        ReportDestination::Stdout => {
+            emit_markdown_to_stdout(&report);
+            return Ok(());
+        },
+        ReportDestination::File(path) => {
+            let output_path = path.unwrap_or_else(|| root.join("rustuse-root-report.md"));
 
-        output.record(
-            "report",
-            "ok",
-            &format!(
-                "generated RustUse root report for {}; wrote {}",
-                root.display(),
-                output_path.display()
-            ),
-        );
+            if output.is_json() {
+                write_report(&output_path, &report)?;
 
-        return Ok(());
+                output.record(
+                    "report",
+                    "ok",
+                    &format!(
+                        "generated RustUse root report for {}; wrote {}",
+                        root.display(),
+                        output_path.display()
+                    ),
+                );
+
+                return Ok(());
+            }
+
+            output.line(format!(
+                "RustUse development root report - root: {}",
+                root.display()
+            ));
+
+            write_report(&output_path, &report)?;
+
+            output.line(format!("wrote: {}", output_path.display()));
+        },
     }
-
-    output.line(format!(
-        "RustUse development root report - root: {}",
-        root.display()
-    ));
-
-    write_report(&output_path, &report)?;
-
-    output.line(format!("wrote: {}", output_path.display()));
 
     Ok(())
 }

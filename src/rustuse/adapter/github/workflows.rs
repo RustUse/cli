@@ -59,14 +59,6 @@ impl GitHubWorkflowReport {
             .count()
     }
 
-    pub(crate) fn missing_required_count(&self) -> usize {
-        self.required_surface
-            .iter()
-            .chain(self.required_workflows.iter())
-            .filter(|check| !check.present)
-            .count()
-    }
-
     pub(crate) fn has_missing_required_paths(&self) -> bool {
         self.required_surface
             .iter()

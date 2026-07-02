@@ -50,6 +50,25 @@ pub(crate) fn resolve_report_path(root: &Path, output: Option<PathBuf>) -> PathB
     output.unwrap_or_else(|| default_report_path(root))
 }
 
+/// Where a generated Markdown report should be delivered.
+#[derive(Clone, Debug)]
+pub(crate) enum ReportDestination {
+    /// Write the report to a file (default path unless a file is provided).
+    File(Option<PathBuf>),
+
+    /// Print the report to standard output.
+    Stdout,
+}
+
+/// Prints a Markdown report to standard output, ensuring a trailing newline.
+pub(crate) fn emit_markdown_to_stdout(report: &str) {
+    print!("{report}");
+
+    if !report.ends_with('\n') {
+        println!();
+    }
+}
+
 pub(crate) fn write_markdown_report(path: &Path, report: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)

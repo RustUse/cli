@@ -242,6 +242,60 @@ pub(crate) fn display_version(version: &Option<String>) -> &str {
     version.as_deref().unwrap_or("<missing>")
 }
 
+/// Resolves `path` to a canonical, absolute path when possible.
+pub(crate) fn resolve_existing_path(path: &Path) -> PathBuf {
+    if let Ok(canonical) = fs::canonicalize(path) {
+        return canonical;
+    }
+
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    std::env::current_dir()
+        .map(|current_dir| current_dir.join(path))
+        .unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Returns true when `path` looks like a `use-*` facade repository.
+///
+/// Shared by the `scan` and `report` commands so facade detection stays
+/// consistent across workflows.
+pub(crate) fn looks_like_facade(path: &Path) -> bool {
+    let resolved = resolve_existing_path(path);
+
+    has_facade_shape(&resolved)
+        && (has_facade_directory_name(&resolved) || has_facade_package_name(&resolved))
+}
+
+fn has_facade_shape(path: &Path) -> bool {
+    path.join("Cargo.toml").is_file() && path.join("crates").is_dir()
+}
+
+fn has_facade_directory_name(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with("use-"))
+}
+
+fn has_facade_package_name(path: &Path) -> bool {
+    let manifest_path = path.join("Cargo.toml");
+
+    let Ok(raw) = fs::read_to_string(manifest_path) else {
+        return false;
+    };
+
+    let Ok(manifest) = toml::from_str::<toml::Value>(&raw) else {
+        return false;
+    };
+
+    manifest
+        .get("package")
+        .and_then(|package| package.get("name"))
+        .and_then(toml::Value::as_str)
+        .is_some_and(|name| name.starts_with("use-"))
+}
+
 fn read_facade_crate_version(facade_root: &Path, facade_name: &str) -> Result<Option<String>> {
     let root_manifest_path = facade_root.join(CARGO_MANIFEST_FILE_NAME);
     let facade_manifest_path = facade_root

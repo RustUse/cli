@@ -1,9 +1,26 @@
+//! Guided interactive menu shown when `rustuse` runs without a subcommand.
+//!
+//! This layer only collects missing inputs and then delegates to the existing
+//! command implementations. It must not contain business logic of its own.
+
 use std::io::IsTerminal;
+use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{Input, Select, theme::ColorfulTheme};
 
 use crate::output::Output;
+
+use super::NamedCommandArgs;
+use super::add::{self, AddArgs, AddMode};
+use super::copy::{self, CopyArgs};
+use super::doctor::{self, DoctorArgs};
+use super::ferris::{self, FerrisArgs};
+use super::info::{self, InfoArgs};
+use super::init::{self, InitArgs};
+use super::report::{self, ReportArgs, ReportKind};
+use super::scan::{self, ScanArgs, ScanKind};
+use super::search::{self, SearchArgs};
 
 pub(crate) fn run(output: Output, non_interactive: bool) -> Result<()> {
     if non_interactive || !std::io::stdin().is_terminal() {
@@ -11,12 +28,12 @@ pub(crate) fn run(output: Output, non_interactive: bool) -> Result<()> {
     }
 
     let choices = [
+        "Search RustUse crates",
+        "Show crate or primitive info",
         "Add a RustUse crate",
         "Copy RustUse source",
-        "Search RustUse crates",
-        "Generate a report",
         "Scan a RustUse repository",
-        "Inspect a facade",
+        "Generate a report",
         "Initialize RustUse tracking",
         "Run doctor checks",
         "Ask Ferris",
@@ -30,15 +47,91 @@ pub(crate) fn run(output: Output, non_interactive: bool) -> Result<()> {
         .interact()?;
 
     match selected {
-        0 => crate::commands::placeholder(output, "add", "interactive add flow"),
-        1 => crate::commands::placeholder(output, "copy", "interactive copy flow"),
-        2 => crate::commands::placeholder(output, "search", "interactive search flow"),
-        3 => crate::commands::placeholder(output, "report", "interactive report flow"),
-        4 => crate::commands::placeholder(output, "scan", "interactive scan flow"),
-        5 => crate::commands::placeholder(output, "facade", "interactive facade flow"),
-        6 => crate::commands::placeholder(output, "init", "interactive init flow"),
-        7 => crate::commands::placeholder(output, "doctor", "interactive doctor flow"),
-        8 => crate::commands::placeholder(output, "ferris", "interactive ferris flow"),
+        0 => search::run(
+            SearchArgs {
+                query: prompt_text("Search query")?,
+                limit: 20,
+            },
+            output,
+        ),
+        1 => info::run(
+            InfoArgs {
+                name: NamedCommandArgs {
+                    name: prompt_text("Crate or primitive name")?,
+                },
+            },
+            output,
+        ),
+        2 => add::run(
+            AddArgs {
+                name: NamedCommandArgs {
+                    name: prompt_text("Crate name")?,
+                },
+                mode: AddMode::Cargo,
+                dry_run: true,
+            },
+            output,
+        ),
+        3 => copy::run(
+            CopyArgs {
+                name: NamedCommandArgs {
+                    name: prompt_text("Crate or primitive name")?,
+                },
+                to: prompt_path("Destination directory", ".")?,
+                force: false,
+            },
+            output,
+        ),
+        4 => scan::run(
+            ScanArgs {
+                path: prompt_path("Path to scan", ".")?,
+                kind: ScanKind::Auto,
+            },
+            output,
+        ),
+        5 => report::run(
+            ReportArgs {
+                path: prompt_path("Path to report on", ".")?,
+                kind: ReportKind::Auto,
+                stdout: true,
+                output: None,
+            },
+            output,
+        ),
+        6 => init::run(
+            InitArgs {
+                path: prompt_path("Directory to initialize", ".")?,
+                copy_first: false,
+                cargo_first: false,
+                dry_run: true,
+                force: false,
+            },
+            output,
+        ),
+        7 => doctor::run(
+            DoctorArgs {
+                path: prompt_path("Directory to inspect", ".")?,
+            },
+            output,
+        ),
+        8 => ferris::run(FerrisArgs {}, output),
         _ => Ok(()),
     }
+}
+
+fn prompt_text(prompt: &str) -> Result<String> {
+    let value: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .interact_text()?;
+
+    Ok(value)
+}
+
+fn prompt_path(prompt: &str, default: &str) -> Result<PathBuf> {
+    let value: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .default(default.to_owned())
+        .interact_text()?;
+
+    Ok(PathBuf::from(value))
 }

@@ -1,66 +1,56 @@
-use std::path::PathBuf;
+//! Concise scan summary for a local RustUse development root.
+//!
+//! Scan aggregates the discovered `use-*` facade repositories and prints a
+//! short summary. Full Markdown output belongs to `report`.
 
-// use anyhow::{Result, bail};
-use clap::{Args, ValueEnum};
+use std::path::Path;
 
-// use crate::output::Output;
-// use crate::rustuse;
+use anyhow::Result;
 
-#[derive(Debug, Args)]
-pub struct ScanArgs {
-    /// Path to scan.
-    #[arg(default_value = ".", value_name = "PATH")]
-    pub path: PathBuf,
+use crate::output::Output;
+use crate::rustuse::facade::discover::{discover_facades, display_version};
 
-    /// Scan kind to run.
-    #[arg(long, value_enum, default_value_t = ScanKind::Auto)]
-    pub kind: ScanKind,
-}
+pub(crate) fn scan_root(root: &Path, output: Output) -> Result<()> {
+    let facades = discover_facades(root)?;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-pub enum ScanKind {
-    /// Detect the scan kind from the path.
-    Auto,
+    if output.is_json() {
+        output.record(
+            "scan",
+            "ok",
+            &format!("root={}, facades={}", root.display(), facades.len()),
+        );
 
-    /// Scan a RustUse development root containing many use-* repositories.
-    Root,
+        for facade in &facades {
+            output.record(
+                "scan",
+                facade.status(),
+                &format!(
+                    "facade={}, version={}, child_crates={}",
+                    facade.name,
+                    display_version(&facade.version),
+                    facade.child_crate_count()
+                ),
+            );
+        }
 
-    /// Scan a single use-* facade repository.
-    Facade,
-}
-
-/* pub fn run(args: ScanArgs, output: Output) -> Result<()> {
-    match resolve_kind(&args)? {
-        ScanKind::Auto => unreachable!("resolve_kind never returns auto"),
-        ScanKind::Root => unreachable!(
-            "resolve_kind never returns Root {{ is_json: {} }}",
-            output.is_json()
-        ),
-        ScanKind::Facade => bail!(
-            "facade scan is not wired yet; use `rustuse report {} --kind facade` for now",
-            args.path.display()
-        ),
+        return Ok(());
     }
-}
 
-fn resolve_kind(args: &ScanArgs) -> Result<ScanKind> {
-    match args.kind {
-        ScanKind::Auto => {
-            if looks_like_facade(&args.path) {
-                Ok(ScanKind::Facade)
-            } else {
-                Ok(ScanKind::Root)
-            }
-        },
-        ScanKind::Root | ScanKind::Facade => Ok(args.kind),
+    output.line(format!(
+        "RustUse development root scan - root: {}",
+        root.display()
+    ));
+    output.line(format!("- facades: {}", facades.len()));
+
+    for facade in &facades {
+        output.line(format!(
+            "- {} (version: {}, child crates: {}, status: {})",
+            facade.name,
+            display_version(&facade.version),
+            facade.child_crate_count(),
+            facade.status()
+        ));
     }
+
+    Ok(())
 }
-
-fn looks_like_facade(path: &PathBuf) -> bool {
-    let name_is_facade = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.starts_with("use-"));
-
-    name_is_facade && path.join("Cargo.toml").is_file() && path.join("crates").is_dir()
-} */

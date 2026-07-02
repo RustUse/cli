@@ -1,7 +1,7 @@
 use core::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DistributionMode {
+pub(crate) enum DistributionMode {
     Cargo,
     Copy,
     Cli,
@@ -9,7 +9,7 @@ pub enum DistributionMode {
 
 impl DistributionMode {
     #[must_use]
-    pub const fn as_str(self) -> &'static str {
+    pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::Cargo => "cargo",
             Self::Copy => "copy",
@@ -25,28 +25,12 @@ impl fmt::Display for DistributionMode {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CatalogEntry {
-    pub name: String,
-    pub kind: String,
-    pub set: String,
-    pub docs_url: String,
-    pub api_docs_url: String,
-    pub workspace_docs_url: Option<String>,
-    pub modes: Vec<DistributionMode>,
-}
-
-impl CatalogEntry {
-    #[must_use]
-    pub fn supports_mode(&self, mode: DistributionMode) -> bool {
-        self.modes.contains(&mode)
-    }
-
-    #[must_use]
-    pub fn modes_label(&self) -> String {
-        self.modes
-            .iter()
-            .map(|mode| mode.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
+pub(crate) struct CatalogEntry {
+    pub(crate) name: String,
+    pub(crate) kind: String,
+    pub(crate) set: String,
+    pub(crate) docs_url: String,
+    pub(crate) api_docs_url: String,
+    pub(crate) workspace_docs_url: Option<String>,
+    pub(crate) modes: Vec<DistributionMode>,
 }

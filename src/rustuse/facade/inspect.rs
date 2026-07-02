@@ -11,8 +11,7 @@ use crate::rustuse::facade::layout::{
     CRATES_DIR, DENY_CONFIG, DEVCONTAINER_DIR, EDITORCONFIG, GITATTRIBUTES, GITHUB_DIR, GITIGNORE,
     GITLAB_CI_CONFIG, GITLAB_DIR, GITLEAKS_CONFIG, GOVERNANCE, LICENSE, LICENSE_APACHE,
     LICENSE_MIT, MAINTAINERS, MAKEFILE, MARKDOWNLINTIGNORE, README, RELEASE, RELEASE_PLZ_CONFIG,
-    RELEASING, RUST_TOOLCHAIN, RUSTFMT_CONFIG, SCRIPTS_DIR, StandardPath, TAPLO_CONFIG, TARGET_DIR,
-    TRIVYIGNORE, VSCODE_DIR,
+    RELEASING, RUST_TOOLCHAIN, RUSTFMT_CONFIG, StandardPath, TAPLO_CONFIG, TRIVYIGNORE,
 };
 
 use super::discover::FacadeInfo;
@@ -130,21 +129,6 @@ const FACADE_OPTIONAL_DIRECTORIES: &[StandardPath] = &[
     (GITLAB_DIR, "GitLab configuration"),
 ];
 
-pub(crate) const FACADE_DISCOURAGED_DIRECTORIES: &[StandardPath] = &[
-    (VSCODE_DIR, "Local editor state"),
-    (
-        SCRIPTS_DIR,
-        "Per-facade scripts; prefer rustuse-cli or GitHub Actions",
-    ),
-    (TARGET_DIR, "Cargo build output"),
-];
-
-pub(crate) const FACADE_DISCOURAGED_ROOT_FILES: &[StandardPath] = &[
-    ("rustuse-report.md", "Generated RustUse report"),
-    ("sbom.cyclonedx.json", "Generated SBOM"),
-    ("sbom.cyclonedx.xml", "Generated SBOM"),
-];
-
 const FACADE_SURFACE_PROFILE: SurfaceProfile = SurfaceProfile {
     required_files: FACADE_REQUIRED_ROOT_FILES,
     optional_files: FACADE_OPTIONAL_ROOT_FILES,
@@ -156,10 +140,6 @@ pub(crate) type FacadeRepositoryReport = RepositorySurfaceReport;
 
 pub(crate) fn inspect_facade_repository(facade: &FacadeInfo) -> FacadeRepositoryReport {
     inspect_repository_surface(&facade.root, &FACADE_SURFACE_PROFILE)
-}
-
-pub(crate) fn inspect_facade_path(root: &Path) -> FacadeRepositoryReport {
-    inspect_repository_surface(root, &FACADE_SURFACE_PROFILE)
 }
 
 pub(crate) fn inspect_repository_surface(

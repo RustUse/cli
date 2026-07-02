@@ -54,21 +54,6 @@ impl RustUseConfig {
             primitives: Vec::new(),
         }
     }
-
-    #[must_use]
-    pub fn facade(project_name: String, homepage: String) -> Self {
-        Self {
-            version: CONFIG_VERSION,
-            project: ProjectConfig::facade(project_name.clone()),
-            facade: Some(FacadeConfig {
-                name: project_name,
-                crates_dir: String::from("crates"),
-                homepage,
-            }),
-            tracking: TrackingConfig::default(),
-            primitives: Vec::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -102,18 +87,6 @@ impl ProjectConfig {
             default_adoption: AdoptionMode::Copy,
             copy_root: String::from("src/rustuse"),
             test_root: String::from("tests/rustuse"),
-            license: String::from(DEFAULT_LICENSE),
-        }
-    }
-
-    #[must_use]
-    pub fn facade(name: String) -> Self {
-        Self {
-            name,
-            kind: ProjectKind::Facade,
-            default_adoption: AdoptionMode::Cargo,
-            copy_root: String::from("src"),
-            test_root: String::from("tests"),
             license: String::from(DEFAULT_LICENSE),
         }
     }

@@ -12,9 +12,7 @@ pub struct InfoArgs {
 }
 
 pub fn run(args: InfoArgs, output: Output) -> Result<()> {
-    let entries = catalog::all_entries()?;
-
-    let Some(entry) = entries.iter().find(|entry| entry.name == args.name.name) else {
+    let Some(entry) = catalog::find_by_name(&args.name.name) else {
         let message = format!("No RustUse entry found for `{}`.", args.name.name);
         output.record("info", "missing", &message);
         return Ok(());

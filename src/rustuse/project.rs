@@ -40,11 +40,6 @@ pub struct ProjectState {
     pub has_snapshots_dir: bool,
 }
 
-pub fn current_state() -> Result<ProjectState> {
-    let current_dir = std::env::current_dir().context("failed to read current directory")?;
-    Ok(detect(current_dir))
-}
-
 pub fn detect(root: impl AsRef<Path>) -> ProjectState {
     let root = root.as_ref();
     let cargo_toml_path = root.join(CARGO_FILE);
