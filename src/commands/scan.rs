@@ -34,7 +34,7 @@ pub fn run(args: ScanArgs, output: Output) -> Result<()> {
 }
 
 fn run_auto(path: &Path, output: Output) -> Result<()> {
-    if rustuse::facade::discover::looks_like_facade(path) {
+    if rustuse::facade::discover::is_facade(path) {
         rustuse::facade::scan::scan_facade(path, output)
     } else {
         rustuse::root::scan::scan_root(path, output)

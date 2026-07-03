@@ -18,11 +18,12 @@ use crate::rustuse::facade::nonstandard::{
     NonStandardPathKind, NonStandardPathReport, NonStandardPathRule, inspect_non_standard_paths,
 };
 use crate::rustuse::facade::release::{ReleaseSurfaceReport, inspect_release_surface};
-use crate::rustuse::utils::artifacts::{GeneratedArtifactReport, inspect_generated_artifacts};
-use crate::rustuse::utils::report::{
-    ReportDestination, emit_markdown_to_stdout, markdown_path, resolve_report_path,
-    write_markdown_report, write_presence_table, yes_no,
+use crate::rustuse::report::destination::ReportDestination;
+use crate::rustuse::report::markdown::{
+    emit_markdown_to_stdout, markdown_path, resolve_report_path, write_markdown_report,
+    write_presence_table, yes_no,
 };
+use crate::rustuse::utils::artifacts::{GeneratedArtifactReport, inspect_generated_artifacts};
 use crate::rustuse::utils::tooling::{ToolingSurfaceReport, inspect_tooling_surface};
 
 const FACADE_NON_STANDARD_PATHS: &[NonStandardPathRule] = &[NonStandardPathRule {

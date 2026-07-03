@@ -12,7 +12,14 @@ use crate::rustuse::facade::discover::{FacadeEntry, discover_facades, discover_r
 use crate::rustuse::facade::flags::manifest_shape_bucket;
 use crate::rustuse::facade::manifest::{FacadeManifestReport, analyze_manifests};
 use crate::rustuse::facade::standards::{StandardFileReport, analyze_exact_standard_files};
-use crate::rustuse::utils::report::{ReportDestination, emit_markdown_to_stdout};
+use crate::rustuse::report::destination::ReportDestination;
+use crate::rustuse::report::markdown::{emit_markdown_to_stdout, yes_no};
+
+/* #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReportSubject {
+    Facade,
+    Root,
+} */
 
 const TOP_MANIFEST_OFFENDER_LIMIT: usize = 15;
 
@@ -631,10 +638,6 @@ fn display_markdown_version(version: &Option<String>) -> String {
         Some(version) => format!("`{version}`"),
         None => "`<missing>`".to_string(),
     }
-}
-
-fn yes_no(value: bool) -> &'static str {
-    if value { "yes" } else { "no" }
 }
 
 pub(crate) fn generate_markdown_report(

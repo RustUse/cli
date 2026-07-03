@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::rustuse::utils::report::PresenceCheck;
+use crate::rustuse::report::destination::PresenceCheck;
 
 pub(crate) const REQUIRED_GITHUB_WORKFLOWS: &[&str] = &[
     "advisory-rust-quality.yml",

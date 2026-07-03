@@ -6,22 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-pub(crate) const DEFAULT_REPORT_FILE_NAME: &str = "rustuse-report.md";
-
-#[derive(Debug, Clone)]
-pub(crate) struct PresenceCheck {
-    pub(crate) path: String,
-    pub(crate) present: bool,
-}
-
-impl PresenceCheck {
-    pub(crate) fn new(path: impl Into<String>, present: bool) -> Self {
-        Self {
-            path: path.into(),
-            present,
-        }
-    }
-}
+use crate::rustuse::report::destination::{DEFAULT_REPORT_FILE_NAME, PresenceCheck};
 
 pub(crate) fn markdown_path(path: &Path) -> String {
     path.display().to_string().replace('\\', "/")
@@ -48,16 +33,6 @@ pub(crate) fn default_report_path(root: &Path) -> PathBuf {
 
 pub(crate) fn resolve_report_path(root: &Path, output: Option<PathBuf>) -> PathBuf {
     output.unwrap_or_else(|| default_report_path(root))
-}
-
-/// Where a generated Markdown report should be delivered.
-#[derive(Clone, Debug)]
-pub(crate) enum ReportDestination {
-    /// Write the report to a file (default path unless a file is provided).
-    File(Option<PathBuf>),
-
-    /// Print the report to standard output.
-    Stdout,
 }
 
 /// Prints a Markdown report to standard output, ensuring a trailing newline.

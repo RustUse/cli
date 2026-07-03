@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::rustuse::utils::report::PresenceCheck;
+use crate::rustuse::report::destination::PresenceCheck;
 
 #[derive(Debug)]
 pub(crate) struct GitLabReport {

@@ -261,7 +261,7 @@ pub(crate) fn resolve_existing_path(path: &Path) -> PathBuf {
 ///
 /// Shared by the `scan` and `report` commands so facade detection stays
 /// consistent across workflows.
-pub(crate) fn looks_like_facade(path: &Path) -> bool {
+pub(crate) fn is_facade(path: &Path) -> bool {
     let resolved = resolve_existing_path(path);
 
     has_facade_shape(&resolved)

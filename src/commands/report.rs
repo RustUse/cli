@@ -3,9 +3,22 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 
-use crate::{output::Output, rustuse, rustuse::utils::report::ReportDestination};
+use crate::output::Output;
+use crate::rustuse::facade::discover::is_facade;
+use crate::rustuse::report::destination::ReportDestination;
+use crate::rustuse::report::generate::generate_report;
+use crate::rustuse::report::subject::ReportSubject;
 
 use super::placeholder;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ReportKind {
+    Auto,
+    Facade,
+    Root,
+    Catalog,
+    Ci,
+}
 
 #[derive(Debug, Args)]
 pub struct ReportArgs {
@@ -22,20 +35,8 @@ pub struct ReportArgs {
     pub stdout: bool,
 
     /// Optional output file.
-    ///
-    /// Reserved for explicit report output routing. Existing domain report
-    /// writers may still use their default report path until wired.
     #[arg(long, value_name = "FILE")]
     pub output: Option<PathBuf>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-pub enum ReportKind {
-    Auto,
-    Facade,
-    Root,
-    Catalog,
-    Ci,
 }
 
 pub fn run(args: ReportArgs, output: Output) -> Result<()> {
@@ -49,13 +50,14 @@ pub fn run(args: ReportArgs, output: Output) -> Result<()> {
     let destination = report_destination(&args);
 
     match args.kind {
-        ReportKind::Auto => run_auto(&args.path, output, destination),
+        ReportKind::Auto => {
+            let subject = report_subject_for_auto(&args.path);
+            generate_report(&args.path, subject, output, destination)
+        },
         ReportKind::Facade => {
-            rustuse::facade::report::generate_markdown_report(&args.path, output, destination)
+            generate_report(&args.path, ReportSubject::Facade, output, destination)
         },
-        ReportKind::Root => {
-            rustuse::root::report::generate_markdown_report(&args.path, output, destination)
-        },
+        ReportKind::Root => generate_report(&args.path, ReportSubject::Root, output, destination),
         ReportKind::Catalog => placeholder(
             output,
             "report",
@@ -78,18 +80,14 @@ pub fn run(args: ReportArgs, output: Output) -> Result<()> {
 }
 
 fn report_destination(args: &ReportArgs) -> ReportDestination {
-    if args.stdout {
-        ReportDestination::Stdout
-    } else {
-        ReportDestination::File(args.output.clone())
-    }
+    ReportDestination::from_output(args.stdout, args.output.clone())
 }
 
-fn run_auto(path: &Path, output: Output, destination: ReportDestination) -> Result<()> {
-    if rustuse::facade::discover::looks_like_facade(path) {
-        rustuse::facade::report::generate_markdown_report(path, output, destination)
+fn report_subject_for_auto(path: &Path) -> ReportSubject {
+    if is_facade(path) {
+        ReportSubject::Facade
     } else {
-        rustuse::root::report::generate_markdown_report(path, output, destination)
+        ReportSubject::Root
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
     rustuse::{
         self,
         facade::{discover::discover_facade, inspect::inspect_facade_repository},
-        utils::report::ReportDestination,
+        report::destination::ReportDestination,
     },
 };
 

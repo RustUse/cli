@@ -9,6 +9,7 @@ use anyhow::Result;
 
 use crate::output::Output;
 use crate::rustuse::facade::discover::discover_facade;
+use crate::rustuse::report::markdown::yes_no;
 
 pub(crate) fn scan_facade(root: &Path, output: Output) -> Result<()> {
     let facade = discover_facade(root)?;
@@ -39,8 +40,4 @@ pub(crate) fn scan_facade(root: &Path, output: Output) -> Result<()> {
     output.line(format!("- status: {}", facade.status()));
 
     Ok(())
-}
-
-const fn yes_no(value: bool) -> &'static str {
-    if value { "yes" } else { "no" }
 }
