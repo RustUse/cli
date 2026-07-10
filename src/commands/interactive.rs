@@ -18,8 +18,6 @@ use super::doctor::{self, DoctorArgs};
 use super::ferris::{self, FerrisArgs};
 use super::info::{self, InfoArgs};
 use super::init::{self, InitArgs};
-use super::report::{self, ReportArgs, ReportKind};
-use super::scan::{self, ScanArgs, ScanKind};
 use super::search::{self, SearchArgs};
 
 pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()> {
@@ -97,23 +95,7 @@ pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()
             },
             output,
         ),
-        4 => scan::run(
-            ScanArgs {
-                path: prompt_path("Path to scan", ".")?,
-                kind: ScanKind::Auto,
-            },
-            output,
-        ),
-        5 => report::run(
-            ReportArgs {
-                path: prompt_path("Path to report on", ".")?,
-                kind: ReportKind::Auto,
-                stdout: true,
-                output: None,
-            },
-            output,
-        ),
-        6 => init::run(
+        4 => init::run(
             InitArgs {
                 path: prompt_path("Directory to initialize", ".")?,
                 copy_first: false,
@@ -123,13 +105,13 @@ pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()
             },
             output,
         ),
-        7 => doctor::run(
+        5 => doctor::run(
             DoctorArgs {
                 path: prompt_path("Directory to inspect", ".")?,
             },
             output,
         ),
-        8 => ferris::run(FerrisArgs {}, output),
+        6 => ferris::run(FerrisArgs {}, output),
         _ => Ok(()),
     }
 }

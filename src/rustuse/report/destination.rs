@@ -1,28 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub(crate) const DEFAULT_REPORT_FILE_NAME: &str = "rustuse-report.md";
-
-/// Where a generated Markdown report should be delivered.
-#[derive(Clone, Debug)]
-pub(crate) enum ReportDestination {
-    /// Write the report to a file.
-    ///
-    /// `None` means use the default report path for the inspected root.
-    File(Option<PathBuf>),
-
-    /// Print the report to standard output.
-    Stdout,
-}
-
-impl ReportDestination {
-    pub(crate) fn from_output(stdout: bool, output: Option<PathBuf>) -> Self {
-        if stdout {
-            Self::Stdout
-        } else {
-            Self::File(output)
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub(crate) struct PresenceCheck {
@@ -37,4 +15,12 @@ impl PresenceCheck {
             present,
         }
     }
+}
+
+pub(crate) fn report_path(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
+pub(crate) fn default_report_path(root: &Path) -> PathBuf {
+    root.join(DEFAULT_REPORT_FILE_NAME)
 }

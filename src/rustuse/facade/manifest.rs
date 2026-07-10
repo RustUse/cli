@@ -15,8 +15,7 @@ use crate::rustuse::adapter::crates_io::category_slugs::{
 use crate::rustuse::adapter::cargo::manifest::{
     has_string_or_workspace_true, read_manifest_with_diagnostics,
 };
-use crate::rustuse::facade::discover::FacadeEntry;
-use crate::rustuse::facade::flags::{
+use crate::rustuse::facade::codes::{
     DUPLICATE_CATEGORY, INVALID_CATEGORIES_SHAPE, INVALID_CATEGORY_SLUG, INVALID_CATEGORY_VALUE,
     INVALID_CHILD_PACKAGE_NAME, INVALID_FACADE_CHILD_DEPENDENCY, INVALID_FACADE_CHILD_FEATURE,
     INVALID_FACADE_DEFAULT_FEATURES, INVALID_FACADE_PACKAGE_NAME, INVALID_PACKAGE_DOCUMENTATION,
@@ -213,23 +212,6 @@ impl ManifestIssueSeverity {
             Self::Warning => "warning",
         }
     }
-}
-
-pub(crate) fn analyze_manifests(
-    root: &Path,
-    facades: &[FacadeEntry],
-) -> Result<Vec<FacadeManifestReport>> {
-    facades
-        .iter()
-        .map(|facade| analyze_facade_manifests(root, facade))
-        .collect()
-}
-
-pub(crate) fn analyze_facade_manifests(
-    root: &Path,
-    facade: &FacadeEntry,
-) -> Result<FacadeManifestReport> {
-    analyze_facade_repository_manifests(&root.join(&facade.name), &facade.name)
 }
 
 pub(crate) fn analyze_facade_repository_manifests(

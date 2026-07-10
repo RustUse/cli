@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-use super::discover::{FacadeEntry, discover_facades};
 use crate::output::Output;
+use crate::rustuse::fleet::discover::{FleetFacadeEntry, discover_facades};
 
 const EXPECTED_WORKSPACE_MEMBERS: &[&str] = &["crates/*"];
 const RUSTUSE_GITHUB_ORG: &str = "https://github.com/RustUse";
@@ -26,16 +26,16 @@ const INHERITED_PACKAGE_FIELDS: &[&str] = &[
 
 #[derive(Debug, Clone)]
 pub(crate) struct ManifestFixOptions {
-    pub(crate) root: PathBuf,
+    pub(crate) fleet: PathBuf,
     pub(crate) facade: Option<String>,
     pub(crate) code: Option<String>,
     pub(crate) write: bool,
 }
 
 impl ManifestFixOptions {
-    pub(crate) fn new(root: impl Into<PathBuf>) -> Self {
+    pub(crate) fn new(fleet: impl Into<PathBuf>) -> Self {
         Self {
-            root: root.into(),
+            fleet: fleet.into(),
             facade: None,
             code: None,
             write: false,
@@ -155,8 +155,8 @@ pub(crate) fn run(options: ManifestFixOptions, output: Output) -> Result<Manifes
     let summary = fix_manifests(&options)?;
 
     output.line(format!(
-        "RustUse dev root manifests fix - root: {}",
-        options.root.display()
+        "RustUse Fleet manifests fix - fleet: {}",
+        options.fleet.display()
     ));
 
     output.line(format!(
@@ -185,8 +185,8 @@ pub(crate) fn run(options: ManifestFixOptions, output: Output) -> Result<Manifes
 }
 
 pub(crate) fn fix_manifests(options: &ManifestFixOptions) -> Result<ManifestFixSummary> {
-    let root = fs::canonicalize(&options.root).unwrap_or_else(|_| options.root.clone());
-    let facades = discover_facades(&root)?;
+    let fleet = fs::canonicalize(&options.fleet).unwrap_or_else(|_| options.fleet.clone());
+    let facades = discover_facades(&fleet)?;
     let group = ManifestFixGroup::from_code(options.code.as_deref())?;
 
     let mut summary = ManifestFixSummary::default();
@@ -198,20 +198,20 @@ pub(crate) fn fix_manifests(options: &ManifestFixOptions) -> Result<ManifestFixS
         }
 
         summary.facades_inspected += 1;
-        fix_facade_manifests(&root, &facade, group, options.write, &mut summary)?;
+        fix_facade_manifests(&fleet, &facade, group, options.write, &mut summary)?;
     }
 
     Ok(summary)
 }
 
 fn fix_facade_manifests(
-    root: &Path,
-    facade: &FacadeEntry,
+    fleet: &Path,
+    facade: &FleetFacadeEntry,
     group: ManifestFixGroup,
     write: bool,
     summary: &mut ManifestFixSummary,
 ) -> Result<()> {
-    let facade_root = root.join(&facade.name);
+    let facade_root = fleet.join(&facade.name);
     let crates_dir = facade_root.join("crates");
     let workspace_manifest_path = facade_root.join("Cargo.toml");
 
@@ -254,7 +254,7 @@ fn fix_facade_manifests(
 
     /* if group.fixes_workspace_shape() || group.fixes_workspace_dependencies() {
         fix_workspace_manifest(
-            root,
+            fleet,
             &workspace_manifest_path,
             &facade.name,
             &child_crates,
@@ -269,7 +269,7 @@ fn fix_facade_manifests(
         || group.fixes_facade_wiring()
     {
         fix_workspace_manifest(
-            root,
+            fleet,
             &workspace_manifest_path,
             &facade.name,
             &child_crates,
@@ -1101,7 +1101,7 @@ fn set_workspace_true(table: &mut toml::Table, key: &str) {
     table.insert(key.to_string(), toml::Value::Table(workspace));
 }
 
-fn matches_facade_filter(facade: &FacadeEntry, facade_filter: Option<&str>) -> bool {
+fn matches_facade_filter(facade: &FleetFacadeEntry, facade_filter: Option<&str>) -> bool {
     match facade_filter {
         Some(filter) => facade.name == filter,
         None => true,

@@ -2,15 +2,11 @@
 
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::rustuse::report::destination::{DEFAULT_REPORT_FILE_NAME, PresenceCheck};
-
-pub(crate) fn markdown_path(path: &Path) -> String {
-    path.display().to_string().replace('\\', "/")
-}
+use crate::rustuse::report::destination::PresenceCheck;
 
 pub(crate) fn write_presence_table(markdown: &mut String, checks: &[PresenceCheck]) {
     markdown.push_str("| Surface | Present |\n");
@@ -25,23 +21,6 @@ pub(crate) fn write_presence_table(markdown: &mut String, checks: &[PresenceChec
     }
 
     markdown.push('\n');
-}
-
-pub(crate) fn default_report_path(root: &Path) -> PathBuf {
-    root.join(DEFAULT_REPORT_FILE_NAME)
-}
-
-pub(crate) fn resolve_report_path(root: &Path, output: Option<PathBuf>) -> PathBuf {
-    output.unwrap_or_else(|| default_report_path(root))
-}
-
-/// Prints a Markdown report to standard output, ensuring a trailing newline.
-pub(crate) fn emit_markdown_to_stdout(report: &str) {
-    print!("{report}");
-
-    if !report.ends_with('\n') {
-        println!();
-    }
 }
 
 pub(crate) fn write_markdown_report(path: &Path, report: &str) -> Result<()> {

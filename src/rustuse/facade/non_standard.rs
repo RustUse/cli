@@ -1,10 +1,12 @@
 //! Shared non-standard path checks for RustUse repositories.
+//! This module defines rules for detecting non-standard paths in a RustUse repository, such as the presence of a `src` or `docs` directory at the root level. It provides functionality to inspect a repository against these rules and generate a report indicating which non-standard paths are present, along with recommendations for remediation.
 
 use std::path::Path;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum NonStandardPathKind {
     Directory,
+    File,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -57,6 +59,7 @@ pub(crate) fn inspect_non_standard_paths(
         .map(|rule| {
             let present = match rule.kind {
                 NonStandardPathKind::Directory => root.join(rule.path).is_dir(),
+                NonStandardPathKind::File => root.join(rule.path).is_file(),
             };
 
             NonStandardPathCheck {

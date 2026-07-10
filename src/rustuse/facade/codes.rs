@@ -151,3 +151,17 @@ pub(crate) fn manifest_shape_bucket(code: &str) -> &'static str {
 /* pub(crate) fn is_workspace_dependency_version_code(code: &str) -> bool {
     WORKSPACE_DEPENDENCY_VERSION_CODES.contains(&code)
 } */
+
+pub(crate) const MISSING_GIT_REPOSITORY: &str = "missing-git-repository";
+pub(crate) const MISSING_ROOT_MANIFEST: &str = "missing-root-manifest";
+pub(crate) const MISSING_CRATES_DIRECTORY: &str = "missing-crates-directory";
+pub(crate) const MISSING_CHILD_CRATES: &str = "missing-child-crates";
+pub(crate) const MISSING_REQUIRED_FILE: &str = "missing-required-file";
+pub(crate) const MISSING_REQUIRED_DIRECTORY: &str = "missing-required-directory";
+pub(crate) const MISSING_CRATE_LIB: &str = "missing-crate-lib";
+pub(crate) const MISSING_FACADE_PRELUDE: &str = "missing-facade-prelude";
+pub(crate) const MISSING_TOOLING_SURFACE: &str = "missing-tooling-surface";
+pub(crate) const MISSING_GITHUB_CI_CD_SURFACE: &str = "missing-github-ci-cd-surface";
+pub(crate) const MISSING_RELEASE_SURFACE: &str = "missing-release-surface";
+pub(crate) const MISSING_RELEASE_CI_SURFACE: &str = "missing-release-ci-surface";
+pub(crate) const NON_STANDARD_PATH: &str = "non-standard-path";

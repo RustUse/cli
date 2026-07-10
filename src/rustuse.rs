@@ -3,7 +3,7 @@ pub mod catalog;
 pub mod ci;
 pub mod config;
 pub mod facade;
+pub mod fleet;
 pub mod project;
 pub mod report;
-pub mod root;
 pub mod utils;

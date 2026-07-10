@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ReportSubject {
+pub(crate) enum ReportSubject {
     Facade,
-    Root,
+    Fleet,
 }

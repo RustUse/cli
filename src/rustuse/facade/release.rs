@@ -28,7 +28,12 @@ impl ReleaseSurfaceReport {
     }
 
     pub(crate) fn status(&self) -> &'static str {
-        if self.surface.iter().all(|check| check.present) {
+        if self
+            .surface
+            .iter()
+            .chain(self.ci_surface.iter())
+            .all(|check| check.present)
+        {
             "ok"
         } else {
             "warning"

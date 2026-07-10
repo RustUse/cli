@@ -5,10 +5,10 @@ use clap::{Args, ValueEnum};
 
 use crate::output::Output;
 
-use super::placeholder;
+use crate::commands::placeholder;
 
 #[derive(Debug, Args)]
-pub struct CheckArgs {
+pub struct CheckCiArgs {
     /// Path to check.
     #[arg(default_value = ".", value_name = "PATH")]
     pub path: PathBuf,
@@ -31,7 +31,7 @@ pub enum CheckKind {
     Ci,
 }
 
-pub fn run(args: CheckArgs, output: Output) -> Result<()> {
+pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
     placeholder(
         output,
         "check",

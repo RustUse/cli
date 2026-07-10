@@ -1,11 +1,11 @@
-//! Discovery helpers for a local RustUse development root.
+//! Discovery helpers for a local RustUse fleet.
 
-/* use std::fs;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result}; */
+use anyhow::{Context, Result};
 
-/* const ROOT_REPOS: &[&str] = &[
+const FLEET_REPOS: &[&str] = &[
     ".github",
     ".github-private",
     "cli",
@@ -17,35 +17,17 @@ use anyhow::{Context, Result}; */
 
 const GIT_DIR_NAME: &str = ".git";
 const CARGO_MANIFEST_FILE_NAME: &str = "Cargo.toml";
-const CRATES_DIR_NAME: &str = "crates"; */
+const CRATES_DIR_NAME: &str = "crates";
 
-/* #[derive(Debug, Clone)]
-pub(crate) struct RootRepoEntry {
+#[derive(Debug, Clone)]
+pub(crate) struct FleetRepoEntry {
     pub(crate) name: &'static str,
     pub(crate) present: bool,
     pub(crate) has_git: bool,
-} */
+}
 
-/* impl RootRepoEntry {
-    pub(crate) fn present(&self) -> bool {
-        self.present
-    }
-
-    pub(crate) fn has_git(&self) -> bool {
-        self.has_git
-    }
-
-    pub(crate) fn status(&self) -> &'static str {
-        if self.present() && self.has_git() {
-            "ok"
-        } else {
-            "warning"
-        }
-    }
-} */
-
-/* #[derive(Debug, Clone)]
-pub(crate) struct FacadeEntry {
+#[derive(Debug, Clone)]
+pub(crate) struct FleetFacadeEntry {
     pub(crate) name: String,
     pub(crate) version: Option<String>,
     pub(crate) has_git: bool,
@@ -54,29 +36,9 @@ pub(crate) struct FacadeEntry {
     pub(crate) child_crate_count: usize,
 }
 
-impl FacadeEntry {
-    pub(crate) fn has_git(&self) -> bool {
-        self.has_git
-    }
-
-    pub(crate) fn has_cargo_toml(&self) -> bool {
-        self.has_cargo_toml
-    }
-
-    pub(crate) fn has_crates_dir(&self) -> bool {
-        self.has_crates_dir
-    }
-
-    pub(crate) fn has_version(&self) -> bool {
-        self.version.is_some()
-    }
-
-    pub(crate) fn child_crate_count(&self) -> usize {
-        self.child_crate_count
-    }
-
+impl FleetFacadeEntry {
     pub(crate) fn status(&self) -> &'static str {
-        if self.has_git() && self.has_cargo_toml() && self.has_crates_dir() && self.has_version() {
+        if self.has_git && self.has_cargo_toml && self.has_crates_dir && self.version.is_some() {
             "ok"
         } else {
             "warning"
@@ -84,28 +46,28 @@ impl FacadeEntry {
     }
 }
 
-pub(crate) fn discover_root_repos(root: &Path) -> Vec<RootRepoEntry> {
-    ROOT_REPOS
+pub(crate) fn discover_fleet_repos(fleet: &Path) -> Vec<FleetRepoEntry> {
+    FLEET_REPOS
         .iter()
-        .map(|name| discover_root_repo(root, name))
+        .map(|name| discover_fleet_repo(fleet, name))
         .collect()
 }
 
-fn discover_root_repo(root: &Path, name: &'static str) -> RootRepoEntry {
-    let path = root.join(name);
+fn discover_fleet_repo(fleet: &Path, name: &'static str) -> FleetRepoEntry {
+    let path = fleet.join(name);
 
-    RootRepoEntry {
+    FleetRepoEntry {
         name,
         present: path.is_dir(),
         has_git: path.join(GIT_DIR_NAME).is_dir(),
     }
 }
 
-pub(crate) fn discover_facades(root: &Path) -> Result<Vec<FacadeEntry>> {
+pub(crate) fn discover_facades(fleet: &Path) -> Result<Vec<FleetFacadeEntry>> {
     let mut facades = Vec::new();
 
-    for entry in fs::read_dir(root)
-        .with_context(|| format!("failed to read root directory `{}`", root.display()))?
+    for entry in fs::read_dir(fleet)
+        .with_context(|| format!("failed to read fleet directory `{}`", fleet.display()))?
     {
         let entry = entry?;
         let path = entry.path();
@@ -130,10 +92,10 @@ pub(crate) fn discover_facades(root: &Path) -> Result<Vec<FacadeEntry>> {
     Ok(facades)
 }
 
-fn discover_facade_entry(path: &Path, name: &str) -> Result<FacadeEntry> {
+fn discover_facade_entry(path: &Path, name: &str) -> Result<FleetFacadeEntry> {
     let crates_dir = path.join(CRATES_DIR_NAME);
 
-    Ok(FacadeEntry {
+    Ok(FleetFacadeEntry {
         name: name.to_owned(),
         version: read_facade_crate_version(path, name)?,
         has_git: path.join(GIT_DIR_NAME).is_dir(),
@@ -145,6 +107,20 @@ fn discover_facade_entry(path: &Path, name: &str) -> Result<FacadeEntry> {
 
 pub(crate) fn display_version(version: &Option<String>) -> &str {
     version.as_deref().unwrap_or("<missing>")
+}
+
+pub(crate) fn resolve_existing_path(path: &Path) -> PathBuf {
+    if let Ok(canonical) = fs::canonicalize(path) {
+        return canonical;
+    }
+
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    std::env::current_dir()
+        .map(|current_dir| current_dir.join(path))
+        .unwrap_or_else(|_| path.to_path_buf())
 }
 
 fn read_facade_crate_version(facade_root: &Path, facade_name: &str) -> Result<Option<String>> {
@@ -163,7 +139,7 @@ fn read_facade_crate_version(facade_root: &Path, facade_name: &str) -> Result<Op
     if let Some(version) = facade_manifest
         .get("package")
         .and_then(|package| package.get("version"))
-        .and_then(|version| version.as_str())
+        .and_then(toml::Value::as_str)
     {
         return Ok(Some(version.to_owned()));
     }
@@ -172,7 +148,7 @@ fn read_facade_crate_version(facade_root: &Path, facade_name: &str) -> Result<Op
         .get("package")
         .and_then(|package| package.get("version"))
         .and_then(|version| version.get("workspace"))
-        .and_then(|workspace| workspace.as_bool())
+        .and_then(toml::Value::as_bool)
         .unwrap_or(false);
 
     if uses_workspace_version && root_manifest_path.is_file() {
@@ -182,7 +158,7 @@ fn read_facade_crate_version(facade_root: &Path, facade_name: &str) -> Result<Op
             .get("workspace")
             .and_then(|workspace| workspace.get("package"))
             .and_then(|package| package.get("version"))
-            .and_then(|version| version.as_str())
+            .and_then(toml::Value::as_str)
         {
             return Ok(Some(version.to_owned()));
         }
@@ -217,4 +193,4 @@ fn count_child_crates(crates_dir: &Path) -> Result<usize> {
     }
 
     Ok(count)
-} */
+}
