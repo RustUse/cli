@@ -65,17 +65,12 @@ rustuse copy <crate> --with-tests
 rustuse docs <crate-or-facade>
 rustuse doctor
 
-rustuse report [path]
-rustuse report [path] --kind auto
-rustuse report [path] --kind facade
-rustuse report [path] --kind root
-rustuse report [path] --kind catalog
-rustuse report [path] --kind ci
+rustuse dev inspect [path]
+rustuse dev report [path]
+rustuse dev report [path] --fleet
 
-rustuse facade report [path]
-
-rustuse ci [path]
-rustuse ci [path] --profile <profile>
+rustuse ci check [path]
+rustuse ci check [path] --deny-warnings
 ```
 
 Global flags:
@@ -292,25 +287,19 @@ Validates local RustUse configuration and adoption state.
 rustuse doctor
 ```
 
-## Reports
+## Maintainer reports
 
-The top-level `report` command generates human-readable maintenance reports.
-
-```bash
-rustuse report [path]
-```
-
-Report kind can be auto-detected or forced:
+The `dev report` command generates human-readable maintainer reports.
 
 ```bash
-rustuse report . --kind auto
-rustuse report . --kind facade
-rustuse report . --kind root
-rustuse report . --kind catalog
-rustuse report . --kind ci
+rustuse dev report [path]
 ```
 
-Auto-detection chooses a facade report when the path looks like a `use-*` facade repository with a `Cargo.toml` and `crates/` directory. Otherwise it falls back to a root report.
+Use `--fleet` for a RustUse development root that contains multiple facade repositories:
+
+```bash
+rustuse dev report . --fleet
+```
 
 ### Facade report
 
@@ -318,9 +307,8 @@ A facade report is intended to run inside a single `use-*` facade repository.
 
 ```bash
 cd use-fs
-rustuse report .
-rustuse report . --kind facade
-rustuse facade report .
+rustuse dev inspect .
+rustuse dev report .
 ```
 
 The default facade report file is:
@@ -370,13 +358,13 @@ Generate a root report:
 
 ```bash
 cd git_local
-rustuse report . --kind root
+rustuse dev report . --fleet
 ```
 
-The default root report file is:
+The default fleet report file is:
 
 ```text
-rustuse-root-report.md
+rustuse-fleet-report.md
 ```
 
 A root may not itself be a Git repository. The CLI treats the root as a development directory and inspects the repositories inside it.
@@ -448,25 +436,24 @@ release = full orchestration
 Current public maintainer-oriented commands are intentionally conservative:
 
 ```bash
-rustuse report .
-rustuse report . --kind root
-rustuse report . --kind facade
-rustuse facade report .
-rustuse ci . --profile <profile>
+rustuse dev inspect .
+rustuse dev report .
+rustuse dev report . --fleet
+rustuse ci check .
 ```
 
 Future maintainer commands should grow around focused scopes instead of exposing internal utility modules directly.
 
-## Planned facade commands
+## Planned facade maintenance
 
 Facade commands operate on a single `use-*` facade repository.
 
 ```bash
-rustuse facade inspect
-rustuse facade check
-rustuse facade report
-rustuse facade sync --dry-run
-rustuse facade sync --write
+rustuse dev inspect
+rustuse dev report
+rustuse ci check
+rustuse dev sync --dry-run
+rustuse dev sync --write
 ```
 
 Planned facade checks include:
@@ -489,11 +476,11 @@ Planned facade checks include:
 Planned facade sync targets:
 
 ```bash
-rustuse facade sync --only manifest --dry-run
-rustuse facade sync --only exports --dry-run
-rustuse facade sync --only readme --dry-run
-rustuse facade sync --only standards --dry-run
-rustuse facade sync --only workflows --dry-run
+rustuse dev sync --only manifest --dry-run
+rustuse dev sync --only exports --dry-run
+rustuse dev sync --only readme --dry-run
+rustuse dev sync --only standards --dry-run
+rustuse dev sync --only workflows --dry-run
 ```
 
 Write operations should require explicit write-oriented flags such as `--write`.
@@ -503,16 +490,16 @@ Write operations should require explicit write-oriented flags such as `--write`.
 Root commands operate on a RustUse development root.
 
 ```bash
-rustuse root inspect .
-rustuse root check .
-rustuse root report .
-rustuse root manifests .
+rustuse dev inspect .
+rustuse ci check .
+rustuse dev report . --fleet
+rustuse dev manifests .
 ```
 
 Until a public `root` scope is promoted, use:
 
 ```bash
-rustuse report . --kind root
+rustuse dev report . --fleet
 ```
 
 Planned root release orchestration:
@@ -550,17 +537,14 @@ report
 RustUse CI commands are intended to be used both inside CI systems and locally by maintainers.
 
 ```bash
-rustuse ci <path>
-rustuse ci <path> --profile <profile>
+rustuse ci check [path]
+rustuse ci check [path] --deny-warnings
 ```
 
-Example profiles:
+Example deterministic check:
 
 ```bash
-rustuse ci . --profile check
-rustuse ci . --profile facade
-rustuse ci . --profile root
-rustuse ci . --profile release-plan
+rustuse ci check .
 ```
 
 The CI command should be:
@@ -589,7 +573,7 @@ Expected generated artifacts include:
 
 ```text
 rustuse-report.md
-rustuse-root-report.md
+rustuse-fleet-report.md
 .rustuse/cache/
 .rustuse/snapshots/
 ```

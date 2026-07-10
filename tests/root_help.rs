@@ -20,19 +20,22 @@ fn help_lists_core_commands() {
     let bin = CliBinary::rustuse();
     let stdout = run_help(&bin, &[]);
 
-    for command in [
-        "search", "scan", "report", "facade", "ci", "check", "ferris",
-    ] {
+    for command in ["search", "dev", "ci", "ferris"] {
         assert!(stdout.contains(command), "help output missing `{command}`");
     }
 }
 
 #[test]
-fn help_has_no_dev_command() {
+fn help_has_no_legacy_maintainer_commands() {
     let bin = CliBinary::rustuse();
     let stdout = run_help(&bin, &[]);
 
-    assert!(!stdout.contains("\n  dev "), "dev command should not exist");
+    for command in ["facade", "report", "check", "scan"] {
+        assert!(
+            !stdout.contains(&format!("\n  {command} ")),
+            "legacy command `{command}` should not exist"
+        );
+    }
 }
 
 #[test]

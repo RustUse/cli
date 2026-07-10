@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 
 use crate::output::Output;
 
+pub mod inspect;
 pub mod interactive;
 pub mod report;
 
@@ -14,6 +15,9 @@ pub struct DevArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum DevCommands {
+    /// Inspect one RustUse facade repository.
+    Inspect(inspect::DevInspectArgs),
+
     /// Generate a RustUse development report.
     Report(report::DevReportArgs),
 }
@@ -38,6 +42,7 @@ pub fn run(args: DevArgs, output: Output, non_interactive: bool, yes: bool) -> R
 
 fn run_command(command: DevCommands, output: Output, context: DevCommandContext) -> Result<()> {
     match command {
+        DevCommands::Inspect(args) => inspect::run(args, output),
         DevCommands::Report(args) => report::run(args, output, context),
     }
 }

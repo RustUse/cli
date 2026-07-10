@@ -2,19 +2,17 @@
 
 mod common;
 
-use common::{CliBinary, run_help, run_raw, run_success};
+use common::{CliBinary, TempProject, run_help, run_raw, run_raw_in};
 
 #[test]
 fn ci_help_lists_workflows() {
     let bin = CliBinary::rustuse();
     let stdout = run_help(&bin, &["ci"]);
 
-    for subcommand in ["check", "github-actions", "trusted-publishing", "report"] {
-        assert!(
-            stdout.contains(subcommand),
-            "ci help missing `{subcommand}`:\n{stdout}"
-        );
-    }
+    assert!(
+        stdout.contains("check"),
+        "ci help missing `check`:\n{stdout}"
+    );
 }
 
 #[test]
@@ -29,12 +27,23 @@ fn ci_without_subcommand_fails() {
 }
 
 #[test]
-fn ci_check_marks_staged_behavior() {
+fn ci_check_deny_warnings_fails_on_incomplete_facade() {
     let bin = CliBinary::rustuse();
-    let stdout = run_success(&bin, &["ci", "check"]);
+    let project = TempProject::new();
+    let output = run_raw_in(
+        &bin,
+        project.path(),
+        &["ci", "check", "--deny-warnings", "."],
+    );
 
     assert!(
-        stdout.contains("staged=true"),
-        "ci check output should mark staged behavior:\n{stdout}"
+        !output.status.success(),
+        "ci check should fail for an incomplete facade when warnings are denied"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--deny-warnings"),
+        "stderr missing denial context:\n{stderr}"
     );
 }

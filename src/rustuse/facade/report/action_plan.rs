@@ -91,7 +91,7 @@ fn write_priority_issues(markdown: &mut String, diagnostics: &FacadeDiagnostics)
             .sort_rank()
             .cmp(&right.severity.sort_rank())
             .then_with(|| left.bucket.cmp(right.bucket))
-            .then_with(|| left.code.cmp(&right.code))
+            .then_with(|| left.code.cmp(right.code))
             .then_with(|| left.message.cmp(&right.message))
     });
 

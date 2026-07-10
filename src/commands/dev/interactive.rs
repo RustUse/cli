@@ -7,7 +7,7 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use dialoguer::{Input, Select, theme::ColorfulTheme};
+use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 
 use crate::output::Output;
 
@@ -52,7 +52,10 @@ pub(crate) fn run(output: Output, context: DevCommandContext) -> Result<()> {
         0 => report::run(
             DevReportArgs {
                 path: prompt_path("Path to report", ".")?,
-                fleet: false,
+                fleet: Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Is this path a RustUse fleet root?")
+                    .default(false)
+                    .interact()?,
             },
             output,
             context,

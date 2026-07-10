@@ -1,43 +1,43 @@
-//! `facade` subcommand surface.
+//! Facade maintainer workflows exposed through `dev` and `ci`.
 
 mod common;
 
 use common::{CliBinary, run_help, run_raw};
 
 #[test]
-fn facade_help_lists_workflows() {
+fn dev_help_lists_facade_workflows() {
     let bin = CliBinary::rustuse();
-    let stdout = run_help(&bin, &["facade"]);
+    let stdout = run_help(&bin, &["dev"]);
 
-    for subcommand in ["inspect", "scan", "check", "report"] {
+    for subcommand in ["inspect", "report"] {
         assert!(
             stdout.contains(subcommand),
-            "facade help missing `{subcommand}`:\n{stdout}"
+            "dev help missing `{subcommand}`:\n{stdout}"
         );
     }
 }
 
 #[test]
-fn facade_without_subcommand_fails() {
+fn dev_without_subcommand_fails_non_interactively() {
     let bin = CliBinary::rustuse();
-    let output = run_raw(&bin, &["facade"]);
+    let output = run_raw(&bin, &["--non-interactive", "dev"]);
 
     assert!(
         !output.status.success(),
-        "bare `facade` should require a subcommand"
+        "bare `dev` should require a subcommand when non-interactive"
     );
 }
 
 #[test]
-fn facade_inspect_runs_real_backend() {
+fn dev_inspect_runs_real_backend() {
     let bin = CliBinary::rustuse();
     let temp = common::TempProject::facade("demo");
 
-    let output = common::run_raw_in(&bin, temp.path(), &["facade", "inspect", "."]);
+    let output = common::run_raw_in(&bin, temp.path(), &["dev", "inspect", "."]);
 
     assert!(
         output.status.success(),
-        "expected success for `facade inspect .`, stderr: {}",
+        "expected success for `dev inspect .`, stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -49,19 +49,15 @@ fn facade_inspect_runs_real_backend() {
 }
 
 #[test]
-fn facade_check_deny_warnings_fails_on_incomplete_repo() {
+fn ci_check_deny_warnings_fails_on_incomplete_repo() {
     let bin = CliBinary::rustuse();
     let temp = common::TempProject::new();
 
-    let output = common::run_raw_in(
-        &bin,
-        temp.path(),
-        &["facade", "check", "--deny-warnings", "."],
-    );
+    let output = common::run_raw_in(&bin, temp.path(), &["ci", "check", "--deny-warnings", "."]);
 
     assert!(
         !output.status.success(),
-        "expected `facade check --deny-warnings` to fail on incomplete repo"
+        "expected `ci check --deny-warnings` to fail on incomplete repo"
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -72,15 +68,15 @@ fn facade_check_deny_warnings_fails_on_incomplete_repo() {
 }
 
 #[test]
-fn facade_report_writes_default_markdown_report() {
+fn dev_report_writes_default_markdown_report() {
     let bin = CliBinary::rustuse();
     let temp = common::TempProject::facade("report");
 
-    let output = common::run_raw_in(&bin, temp.path(), &["facade", "report", "."]);
+    let output = common::run_raw_in(&bin, temp.path(), &["dev", "report", "."]);
 
     assert!(
         output.status.success(),
-        "expected success for `facade report .`, stderr: {}",
+        "expected success for `dev report .`, stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 

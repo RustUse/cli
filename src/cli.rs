@@ -12,8 +12,8 @@ rustuse helps find, inspect, adopt, validate, and maintain RustUse crates.
 rustuse.toml is optional: Cargo-only and copy-only workflows do not require
 project state. Use `rustuse init` to opt into managed tracking.
 
-Use `rustuse check` and `rustuse report` for local RustUse repository validation.
-Use `rustuse ci` as the stable automation entrypoint for CI systems.
+Use `rustuse dev inspect` and `rustuse dev report` for maintainer workflows.
+Use `rustuse ci check` as the stable automation entrypoint for CI systems.
 
 Run `rustuse` without a subcommand to open the guided interactive menu.";
 

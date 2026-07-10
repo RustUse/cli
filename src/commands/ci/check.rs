@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Args, ValueEnum};
 
 use crate::output::Output;
-
-use crate::commands::placeholder;
+use crate::rustuse::facade::diagnostics::FacadeDiagnostics;
 
 #[derive(Debug, Args)]
 pub struct CheckCiArgs {
@@ -32,14 +31,53 @@ pub enum CheckKind {
 }
 
 pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
-    placeholder(
-        output,
-        "check",
-        format!(
-            "path={}, kind={:?}, deny_warnings={}",
-            args.path.display(),
-            args.kind,
-            args.deny_warnings
-        ),
-    )
+    if !matches!(args.kind, CheckKind::Auto | CheckKind::Facade) {
+        bail!(
+            "ci check currently supports only auto and facade kinds; received {:?}",
+            args.kind
+        );
+    }
+
+    let diagnostics = FacadeDiagnostics::inspect(&args.path)?;
+    let status = diagnostics.status();
+    let summary = format!(
+        "RustUse CI check - root: {}; errors: {}; warnings: {}",
+        diagnostics.facade.root.display(),
+        diagnostics.error_count(),
+        diagnostics.warning_count()
+    );
+
+    if output.is_json() {
+        output.record("ci check", status, &summary);
+    } else {
+        output.line(&summary);
+        for issue in &diagnostics.issues {
+            let path = issue
+                .path
+                .as_deref()
+                .map_or_else(|| "".to_owned(), |path| format!(" [{}]", path.display()));
+            output.line(format!(
+                "{} {}: {}{}",
+                issue.severity.as_str(),
+                issue.code,
+                issue.message,
+                path
+            ));
+        }
+    }
+
+    if diagnostics.error_count() > 0 || (args.deny_warnings && diagnostics.warning_count() > 0) {
+        bail!(
+            "ci check failed with {} error(s) and {} warning(s){}",
+            diagnostics.error_count(),
+            diagnostics.warning_count(),
+            if args.deny_warnings {
+                "; --deny-warnings is enabled"
+            } else {
+                ""
+            }
+        );
+    }
+
+    Ok(())
 }
