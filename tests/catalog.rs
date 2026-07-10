@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{CliBinary, run_success};
+use common::{CliBinary, TempProject, run_success};
 
 #[test]
 fn catalog_info_returns_entry_details() {
@@ -31,12 +31,20 @@ fn catalog_search_returns_matches() {
 }
 
 #[test]
-fn catalog_discover_is_explicitly_staged() {
+fn catalog_discover_lists_local_use_packages() {
+    let project = TempProject::new();
+    project.write(
+        "use-local/Cargo.toml",
+        "[package]\nname = \"use-local\"\nversion = \"0.1.0\"\n",
+    );
     let bin = CliBinary::rustuse();
-    let stdout = run_success(&bin, &["catalog", "discover"]);
+    let stdout = run_success(
+        &bin,
+        &["catalog", "discover", project.path().to_str().unwrap()],
+    );
 
     assert!(
-        stdout.contains("staged=true"),
-        "catalog discover output should mark staged behavior:\n{stdout}"
+        stdout.contains("use-local"),
+        "catalog discover output missing local package:\n{stdout}"
     );
 }

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::rustuse::facade::codes::FacadeIssueCode;
 use crate::rustuse::facade::diagnostics::FacadeDiagnostics;
 use crate::rustuse::facade::manifest::FacadeManifestReport;
 use crate::rustuse::report::destination::report_path;
@@ -28,32 +29,32 @@ pub(crate) fn write_manifest_health(markdown: &mut String, diagnostics: &FacadeD
 }
 
 fn write_manifest_issue_summary(markdown: &mut String, report: &FacadeManifestReport) {
-    let mut rows = report
+    let mut summary = BTreeMap::<(&'static str, FacadeIssueCode), usize>::new();
+
+    for issue in report
         .manifests
         .iter()
         .flat_map(|manifest| manifest.issues.iter())
-        .fold(
-            BTreeMap::<(&'static str, &'static str), usize>::new(),
-            |mut summary, issue| {
-                let key = (issue.severity.as_str(), issue.code);
-                *summary.entry(key).or_default() += 1;
-                summary
-            },
-        )
+    {
+        let key = (issue.severity.as_str(), issue.code);
+        *summary.entry(key).or_default() += 1;
+    }
+
+    if summary.is_empty() {
+        return;
+    }
+
+    let mut rows = summary
         .into_iter()
         .map(|((severity, code), count)| (severity, code, count))
         .collect::<Vec<_>>();
-
-    if rows.is_empty() {
-        return;
-    }
 
     rows.sort_by(|left, right| {
         right
             .2
             .cmp(&left.2)
             .then_with(|| left.0.cmp(right.0))
-            .then_with(|| left.1.cmp(right.1))
+            .then_with(|| left.1.cmp(&right.1))
     });
 
     markdown.push_str("### Manifest Issue Summary\n\n");
@@ -61,7 +62,10 @@ fn write_manifest_issue_summary(markdown: &mut String, report: &FacadeManifestRe
     markdown.push_str("|---|---|---:|\n");
 
     for (severity, code, count) in rows {
-        markdown.push_str(&format!("| `{severity}` | `{code}` | {count} |\n"));
+        markdown.push_str(&format!(
+            "| `{severity}` | `{}` | {count} |\n",
+            code.as_str()
+        ));
     }
 
     markdown.push('\n');
@@ -123,7 +127,7 @@ fn write_manifest_issues(markdown: &mut String, diagnostics: &FacadeDiagnostics)
             markdown.push_str(&format!(
                 "  - **{}** `{}`: {}\n",
                 issue.severity.as_str(),
-                issue.code,
+                issue.code.as_str(),
                 issue.message
             ));
         }

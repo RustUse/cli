@@ -12,21 +12,24 @@ pub(crate) fn write_child_crates(markdown: &mut String, diagnostics: &FacadeDiag
         return;
     }
 
-    markdown
-        .push_str("| Kind | Crate | Manifest | README | lib.rs | prelude.rs | Status | Issues |\n");
-    markdown.push_str("|---|---|---|---:|---:|---:|---:|---:|\n");
+    markdown.push_str(
+        "| Kind | Crate | Manifest | README | lib.rs | prelude.rs | Docs | Manifest | Issues | Notes |\n",
+    );
+    markdown.push_str("|---|---|---|---:|---:|---:|---|---|---:|---|\n");
 
     for row in rows {
         markdown.push_str(&format!(
-            "| `{}` | `{}` | `{}` | {} | {} | {} | {} | {} |\n",
+            "| `{}` | `{}` | `{}` | {} | {} | {} | {} | {} | {} | {} |\n",
             row.kind,
             row.crate_name,
             report_path(&row.manifest_path),
             yes_no(row.readme_present),
             yes_no(row.lib_present),
             yes_no(row.prelude_present),
+            row.documentation_status,
             row.manifest_status,
-            row.manifest_issue_count
+            row.manifest_issue_count,
+            row.documentation_notes
         ));
     }
 

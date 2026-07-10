@@ -16,11 +16,7 @@ pub(crate) fn entries() -> Vec<CatalogEntry> {
             docs_url: "https://rustuse.org/use-geometry/".to_owned(),
             api_docs_url: "https://rustuse.org/api/use-geometry/".to_owned(),
             workspace_docs_url: None,
-            modes: vec![
-                DistributionMode::Cargo,
-                DistributionMode::Copy,
-                DistributionMode::Cli,
-            ],
+            modes: vec![DistributionMode::Cargo, DistributionMode::Cli],
         },
         CatalogEntry {
             name: "use-combinatorics".to_owned(),
@@ -29,11 +25,7 @@ pub(crate) fn entries() -> Vec<CatalogEntry> {
             docs_url: "https://rustuse.org/use-math/use-combinatorics/".to_owned(),
             api_docs_url: "https://rustuse.org/api/use-combinatorics/".to_owned(),
             workspace_docs_url: Some("https://rustuse.org/api/workspaces/use-math/".to_owned()),
-            modes: vec![
-                DistributionMode::Cargo,
-                DistributionMode::Copy,
-                DistributionMode::Cli,
-            ],
+            modes: vec![DistributionMode::Cargo, DistributionMode::Cli],
         },
         CatalogEntry {
             name: "use-math".to_owned(),
@@ -51,11 +43,7 @@ pub(crate) fn entries() -> Vec<CatalogEntry> {
             docs_url: "https://rustuse.org/use-text/use-slug/".to_owned(),
             api_docs_url: "https://rustuse.org/api/use-slug/".to_owned(),
             workspace_docs_url: None,
-            modes: vec![
-                DistributionMode::Cargo,
-                DistributionMode::Copy,
-                DistributionMode::Cli,
-            ],
+            modes: vec![DistributionMode::Cargo, DistributionMode::Cli],
         },
     ]
 }

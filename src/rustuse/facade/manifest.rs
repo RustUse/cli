@@ -15,25 +15,7 @@ use crate::rustuse::adapter::crates_io::category_slugs::{
 use crate::rustuse::adapter::cargo::manifest::{
     has_string_or_workspace_true, read_manifest_with_diagnostics,
 };
-use crate::rustuse::facade::codes::{
-    DUPLICATE_CATEGORY, INVALID_CATEGORIES_SHAPE, INVALID_CATEGORY_SLUG, INVALID_CATEGORY_VALUE,
-    INVALID_CHILD_PACKAGE_NAME, INVALID_FACADE_CHILD_DEPENDENCY, INVALID_FACADE_CHILD_FEATURE,
-    INVALID_FACADE_DEFAULT_FEATURES, INVALID_FACADE_PACKAGE_NAME, INVALID_PACKAGE_DOCUMENTATION,
-    INVALID_PACKAGE_HOMEPAGE, INVALID_WORKSPACE_DEPENDENCY_PATH,
-    INVALID_WORKSPACE_DEPENDENCY_SHAPE, INVALID_WORKSPACE_DEPENDENCY_VERSION,
-    INVALID_WORKSPACE_REPOSITORY, INVALID_WORKSPACE_RESOLVER, INVALID_WORKSPACE_UNSAFE_CODE_POLICY,
-    MISMATCHED_WORKSPACE_DEPENDENCY_VERSION, MISSING_FACADE_CHILD_DEPENDENCY,
-    MISSING_FACADE_CHILD_DEPENDENCY_OPTIONAL, MISSING_FACADE_CHILD_FEATURE,
-    MISSING_FACADE_DEFAULT_FEATURES, MISSING_FACADE_DEPENDENCIES, MISSING_FACADE_FEATURES,
-    MISSING_FACADE_FULL_FEATURE, MISSING_FULL_FEATURE_MEMBER, MISSING_INHERITED_CATEGORIES,
-    MISSING_LINTS_WORKSPACE, MISSING_PACKAGE_CATEGORIES, MISSING_PACKAGE_README_FILE,
-    MISSING_STANDARD_WORKSPACE_MEMBER, MISSING_WORKSPACE, MISSING_WORKSPACE_CATEGORIES,
-    MISSING_WORKSPACE_CLIPPY_LINTS, MISSING_WORKSPACE_DEPENDENCIES, MISSING_WORKSPACE_DEPENDENCY,
-    MISSING_WORKSPACE_DEPENDENCY_PATH, MISSING_WORKSPACE_DEPENDENCY_VERSION,
-    MISSING_WORKSPACE_MEMBERS, MISSING_WORKSPACE_PACKAGE, MISSING_WORKSPACE_PACKAGE_FIELD,
-    MISSING_WORKSPACE_RESOLVER, MISSING_WORKSPACE_UNSAFE_CODE_POLICY,
-    NON_STANDARD_WORKSPACE_MEMBERS, ORPHAN_WORKSPACE_DEPENDENCY_PATH, TOO_MANY_CATEGORIES,
-};
+use crate::rustuse::facade::codes::FacadeIssueCode;
 
 const EXPECTED_WORKSPACE_MEMBERS: &[&str] = &["crates/*"];
 const RUSTUSE_GITHUB_ORG: &str = "https://github.com/RustUse";
@@ -152,7 +134,7 @@ impl ManifestFileReport {
     pub(crate) fn invalid_category_count(&self) -> usize {
         self.issues
             .iter()
-            .filter(|issue| issue.code == INVALID_CATEGORY_SLUG)
+            .filter(|issue| issue.code == FacadeIssueCode::InvalidCategorySlug)
             .count()
     }
 }
@@ -177,12 +159,12 @@ impl ManifestKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ManifestIssue {
     pub(crate) severity: ManifestIssueSeverity,
-    pub(crate) code: &'static str,
+    pub(crate) code: FacadeIssueCode,
     pub(crate) message: String,
 }
 
 impl ManifestIssue {
-    pub(crate) fn error(code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn error(code: FacadeIssueCode, message: impl Into<String>) -> Self {
         Self {
             severity: ManifestIssueSeverity::Error,
             code,
@@ -190,7 +172,7 @@ impl ManifestIssue {
         }
     }
 
-    pub(crate) fn warning(code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn warning(code: FacadeIssueCode, message: impl Into<String>) -> Self {
         Self {
             severity: ManifestIssueSeverity::Warning,
             code,
@@ -236,27 +218,17 @@ pub(crate) fn analyze_facade_repository_manifests(
         facade_root,
         &workspace_manifest_path,
         facade_name,
+        &child_crate_names,
         &crate_infos,
+        &crate_manifest_paths,
         &mut manifests,
     );
 
     for manifest_path in crate_manifest_paths {
-        let crate_dir_name = manifest_path
-            .parent()
-            .and_then(Path::file_name)
-            .and_then(|name| name.to_str())
-            .unwrap_or("<unknown>");
-
-        let kind = if crate_dir_name == facade_name {
-            ManifestKind::FacadePackage
-        } else {
-            ManifestKind::ChildPackage
-        };
-
         analyze_package_manifest(
             facade_root,
             &manifest_path,
-            kind,
+            ManifestKind::ChildPackage,
             facade_name,
             &child_crate_names,
             workspace_categories.as_deref(),
@@ -274,7 +246,9 @@ fn analyze_workspace_root_manifest(
     facade_root: &Path,
     manifest_path: &Path,
     facade_name: &str,
+    child_crate_names: &BTreeSet<String>,
     crate_infos: &BTreeMap<String, CrateManifestInfo>,
+    crate_manifest_paths: &[PathBuf],
     manifests: &mut Vec<ManifestFileReport>,
 ) -> Option<Vec<String>> {
     let mut report = ManifestFileReport {
@@ -286,7 +260,7 @@ fn analyze_workspace_root_manifest(
 
     if !manifest_path.is_file() {
         report.issues.push(ManifestIssue::error(
-            "missing-workspace-manifest",
+            FacadeIssueCode::MissingWorkspaceManifest,
             "missing workspace root Cargo.toml",
         ));
         manifests.push(report);
@@ -298,12 +272,86 @@ fn analyze_workspace_root_manifest(
         return None;
     };
 
+    validate_nested_facade_package(
+        &manifest,
+        facade_root,
+        crate_manifest_paths,
+        crate_infos,
+        &mut report,
+    );
+
     let workspace_categories =
         analyze_workspace_table(&manifest, facade_name, crate_infos, &mut report);
+
+    analyze_package_table(
+        &manifest,
+        manifest_path,
+        ManifestKind::FacadePackage,
+        facade_name,
+        child_crate_names,
+        workspace_categories.as_deref(),
+        &mut report,
+    );
 
     manifests.push(report);
 
     workspace_categories
+}
+
+fn validate_nested_facade_package(
+    root_manifest: &toml::Value,
+    facade_root: &Path,
+    crate_manifest_paths: &[PathBuf],
+    crate_infos: &BTreeMap<String, CrateManifestInfo>,
+    report: &mut ManifestFileReport,
+) {
+    let Some(root_package_name) = root_manifest
+        .get("package")
+        .and_then(toml::Value::as_table)
+        .and_then(|package| package.get("name"))
+        .and_then(toml::Value::as_str)
+    else {
+        return;
+    };
+
+    let mut matching_directories = crate_manifest_paths
+        .iter()
+        .filter_map(|manifest_path| {
+            let dir_name = crate_dir_name(manifest_path)?;
+            let package_name = crate_infos
+                .values()
+                .find(|info| info.dir_name == dir_name)
+                .and_then(|info| info.package_name.as_deref());
+
+            (package_name == Some(root_package_name)).then(|| {
+                relative_path(facade_root, manifest_path)
+                    .parent()
+                    .unwrap_or_else(|| Path::new("crates"))
+                    .display()
+                    .to_string()
+            })
+        })
+        .collect::<Vec<_>>();
+
+    if matching_directories.is_empty() {
+        return;
+    }
+
+    matching_directories.sort();
+    matching_directories.dedup();
+
+    let directories = matching_directories
+        .iter()
+        .map(|directory| format!("`{directory}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    report.issues.push(ManifestIssue::warning(
+        FacadeIssueCode::NestedFacadePackage,
+        format!(
+            "Facade `{root_package_name}` must not also exist as a child crate under `crates/` (matching child directory: {directories}). Move the Facade package to the repository root and remove the nested package after preserving any required source, metadata, README, examples, and feature wiring."
+        ),
+    ));
 }
 
 fn analyze_package_manifest(
@@ -329,6 +377,7 @@ fn analyze_package_manifest(
 
     analyze_package_table(
         &manifest,
+        manifest_path,
         kind,
         facade_name,
         child_crate_names,
@@ -347,7 +396,7 @@ fn analyze_workspace_table(
 ) -> Option<Vec<String>> {
     let Some(workspace) = manifest.get("workspace").and_then(toml::Value::as_table) else {
         report.issues.push(ManifestIssue::error(
-            MISSING_WORKSPACE,
+            FacadeIssueCode::MissingWorkspace,
             "workspace root manifest is missing [workspace]",
         ));
         return None;
@@ -356,11 +405,11 @@ fn analyze_workspace_table(
     match workspace.get("resolver").and_then(toml::Value::as_str) {
         Some("3") => {},
         Some(resolver) => report.issues.push(ManifestIssue::warning(
-            INVALID_WORKSPACE_RESOLVER,
+            FacadeIssueCode::InvalidWorkspaceResolver,
             format!("expected [workspace].resolver = \"3\", found \"{resolver}\""),
         )),
         None => report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_RESOLVER,
+            FacadeIssueCode::MissingWorkspaceResolver,
             "missing [workspace].resolver",
         )),
     }
@@ -368,11 +417,11 @@ fn analyze_workspace_table(
     match workspace.get("members") {
         Some(value) if value.as_array().is_some() => {},
         Some(_) => report.issues.push(ManifestIssue::warning(
-            "invalid-workspace-members",
+            FacadeIssueCode::InvalidWorkspaceMembers,
             "expected [workspace].members to be an array",
         )),
         None => report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_MEMBERS,
+            FacadeIssueCode::MissingWorkspaceMembers,
             "missing [workspace].members",
         )),
     }
@@ -383,7 +432,7 @@ fn analyze_workspace_table(
 
     let Some(workspace_package) = workspace.get("package").and_then(toml::Value::as_table) else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_PACKAGE,
+            FacadeIssueCode::MissingWorkspacePackage,
             "missing [workspace.package]",
         ));
         return None;
@@ -394,7 +443,7 @@ fn analyze_workspace_table(
     for field in REQUIRED_WORKSPACE_PACKAGE_FIELDS {
         if !workspace_package.contains_key(*field) {
             report.issues.push(ManifestIssue::warning(
-                MISSING_WORKSPACE_PACKAGE_FIELD,
+                FacadeIssueCode::MissingWorkspacePackageField,
                 format!("missing [workspace.package].{field}"),
             ));
         }
@@ -402,7 +451,7 @@ fn analyze_workspace_table(
 
     let Some(categories_value) = workspace_package.get("categories") else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_CATEGORIES,
+            FacadeIssueCode::MissingWorkspaceCategories,
             "missing [workspace.package].categories",
         ));
         return None;
@@ -420,6 +469,7 @@ fn analyze_workspace_table(
 
 fn analyze_package_table(
     manifest: &toml::Value,
+    manifest_path: &Path,
     kind: ManifestKind,
     facade_name: &str,
     child_crate_names: &BTreeSet<String>,
@@ -428,7 +478,7 @@ fn analyze_package_table(
 ) {
     let Some(package) = manifest.get("package").and_then(toml::Value::as_table) else {
         report.issues.push(ManifestIssue::error(
-            "missing-package",
+            FacadeIssueCode::MissingPackage,
             "crate manifest is missing [package]",
         ));
         return;
@@ -454,10 +504,77 @@ fn analyze_package_table(
     validate_package_homepage_and_documentation(package, report);
     validate_package_readme(package, report);
     validate_workspace_inherited_package_fields(package, report);
+    validate_docs_rs_configuration(manifest, report);
+    validate_package_directory_name(manifest_path, package, kind, facade_name, report);
     analyze_package_categories(package, workspace_categories, report);
 
     if kind == ManifestKind::FacadePackage {
         validate_facade_dependency_and_feature_wiring(manifest, child_crate_names, report);
+    }
+}
+
+fn validate_docs_rs_configuration(manifest: &toml::Value, report: &mut ManifestFileReport) {
+    let docs_rs = manifest
+        .get("package")
+        .and_then(|package| package.get("metadata"))
+        .and_then(|metadata| metadata.get("docs"))
+        .and_then(|docs| docs.get("rs"))
+        .and_then(toml::Value::as_table);
+
+    let Some(docs_rs) = docs_rs else {
+        report.issues.push(ManifestIssue::warning(
+            FacadeIssueCode::MissingDocsRsAllFeatures,
+            "missing [package.metadata.docs.rs].all-features = true",
+        ));
+        return;
+    };
+
+    match docs_rs.get("all-features") {
+        Some(value) if value.as_bool() == Some(true) => {},
+        Some(_) => report.issues.push(ManifestIssue::warning(
+            FacadeIssueCode::InvalidDocsRsAllFeatures,
+            "expected [package.metadata.docs.rs].all-features = true",
+        )),
+        None => report.issues.push(ManifestIssue::warning(
+            FacadeIssueCode::MissingDocsRsAllFeatures,
+            "missing [package.metadata.docs.rs].all-features = true",
+        )),
+    }
+}
+
+fn validate_package_directory_name(
+    manifest_path: &Path,
+    package: &toml::Table,
+    kind: ManifestKind,
+    facade_name: &str,
+    report: &mut ManifestFileReport,
+) {
+    let Some(package_name) = package.get("name").and_then(toml::Value::as_str) else {
+        return;
+    };
+
+    let expected_name = match kind {
+        ManifestKind::WorkspaceRoot | ManifestKind::FacadePackage => facade_name,
+        ManifestKind::ChildPackage => {
+            let Some(directory_name) = manifest_path
+                .parent()
+                .and_then(Path::file_name)
+                .and_then(|name| name.to_str())
+            else {
+                return;
+            };
+
+            directory_name
+        },
+    };
+
+    if package_name != expected_name {
+        report.issues.push(ManifestIssue::warning(
+            FacadeIssueCode::PackageNameDirectoryMismatch,
+            format!(
+                "package name `{package_name}` does not match its expected directory name `{expected_name}`"
+            ),
+        ));
     }
 }
 
@@ -469,7 +586,7 @@ fn validate_package_name(
 ) {
     let Some(name) = package.get("name").and_then(toml::Value::as_str) else {
         report.issues.push(ManifestIssue::error(
-            "invalid-package-name",
+            FacadeIssueCode::InvalidPackageName,
             "expected [package].name to be a string",
         ));
         return;
@@ -480,7 +597,7 @@ fn validate_package_name(
         ManifestKind::FacadePackage => {
             if name != facade_name {
                 report.issues.push(ManifestIssue::warning(
-                    INVALID_FACADE_PACKAGE_NAME,
+                    FacadeIssueCode::InvalidFacadePackageName,
                     format!("expected facade package name `{facade_name}`, found `{name}`"),
                 ));
             }
@@ -488,7 +605,7 @@ fn validate_package_name(
         ManifestKind::ChildPackage => {
             if !name.starts_with("use-") {
                 report.issues.push(ManifestIssue::warning(
-                    INVALID_CHILD_PACKAGE_NAME,
+                    FacadeIssueCode::InvalidChildPackageName,
                     format!("expected child package name to start with `use-`, found `{name}`"),
                 ));
             }
@@ -499,7 +616,7 @@ fn validate_package_name(
 fn validate_package_version(package: &toml::Table, report: &mut ManifestFileReport) {
     if !has_string_or_workspace_true(package, "version") {
         report.issues.push(ManifestIssue::warning(
-            "invalid-package-version",
+            FacadeIssueCode::InvalidPackageVersion,
             "expected [package].version to be a string or use version.workspace = true",
         ));
     }
@@ -509,11 +626,11 @@ fn validate_package_publish(package: &toml::Table, report: &mut ManifestFileRepo
     match package.get("publish").and_then(toml::Value::as_bool) {
         Some(true) => {},
         Some(false) => report.issues.push(ManifestIssue::warning(
-            "package-publish",
+            FacadeIssueCode::InvalidPackagePublish,
             "expected [package].publish = true for publishable RustUse crates",
         )),
         None => report.issues.push(ManifestIssue::warning(
-            "missing-package-publish",
+            FacadeIssueCode::MissingPackagePublish,
             "missing [package].publish",
         )),
     }
@@ -525,14 +642,14 @@ fn validate_package_homepage_and_documentation(
 ) {
     if !has_string_or_workspace_true(package, "homepage") {
         report.issues.push(ManifestIssue::warning(
-            INVALID_PACKAGE_HOMEPAGE,
+            FacadeIssueCode::InvalidPackageHomepage,
             "expected [package].homepage to be a string or use homepage.workspace = true",
         ));
     }
 
     if !has_string_or_workspace_true(package, "documentation") {
         report.issues.push(ManifestIssue::warning(
-            INVALID_PACKAGE_DOCUMENTATION,
+            FacadeIssueCode::InvalidPackageDocumentation,
             "expected [package].documentation to be a string or use documentation.workspace = true",
         ));
     }
@@ -541,7 +658,7 @@ fn validate_package_homepage_and_documentation(
 fn validate_package_readme(package: &toml::Table, report: &mut ManifestFileReport) {
     if !has_string_or_workspace_true(package, "readme") {
         report.issues.push(ManifestIssue::warning(
-            MISSING_PACKAGE_README_FILE,
+            FacadeIssueCode::MissingPackageReadmeFile,
             "expected [package].readme to be set or inherited from workspace",
         ));
     }
@@ -560,17 +677,17 @@ fn validate_workspace_inherited_package_fields(
     }
 
     report.issues.push(ManifestIssue::warning(
-        MISSING_LINTS_WORKSPACE,
+        FacadeIssueCode::MissingLintsWorkspace,
         "expected [package].lints.workspace = true",
     ));
 }
 
-fn missing_package_field_code(field: &str) -> &'static str {
+fn missing_package_field_code(field: &str) -> FacadeIssueCode {
     match field {
-        "readme" => MISSING_PACKAGE_README_FILE,
-        "homepage" => INVALID_PACKAGE_HOMEPAGE,
-        "documentation" => INVALID_PACKAGE_DOCUMENTATION,
-        _ => "missing-package-field",
+        "readme" => FacadeIssueCode::MissingPackageReadmeFile,
+        "homepage" => FacadeIssueCode::InvalidPackageHomepage,
+        "documentation" => FacadeIssueCode::InvalidPackageDocumentation,
+        _ => FacadeIssueCode::MissingPackageField,
     }
 }
 
@@ -581,7 +698,7 @@ fn analyze_package_categories(
 ) {
     let Some(categories_value) = package.get("categories") else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_PACKAGE_CATEGORIES,
+            FacadeIssueCode::MissingPackageCategories,
             "missing [package].categories or categories.workspace = true",
         ));
         return;
@@ -590,7 +707,7 @@ fn analyze_package_categories(
     if is_workspace_true(categories_value) {
         if workspace_categories.is_none() {
             report.issues.push(ManifestIssue::error(
-                MISSING_INHERITED_CATEGORIES,
+                FacadeIssueCode::MissingInheritedCategories,
                 "package uses categories.workspace = true, but [workspace.package].categories is missing",
             ));
         }
@@ -614,7 +731,7 @@ fn check_workspace_inherited_package_field(
 ) {
     let Some(value) = package.get(field) else {
         report.issues.push(ManifestIssue::warning(
-            "missing-package-inherited-field",
+            FacadeIssueCode::MissingPackageInheritedField,
             format!("missing [package].{field}.workspace = true"),
         ));
         return;
@@ -625,7 +742,7 @@ fn check_workspace_inherited_package_field(
     }
 
     report.issues.push(ManifestIssue::warning(
-        "package-field-not-inherited",
+        FacadeIssueCode::PackageFieldNotInherited,
         format!("expected [package].{field}.workspace = true"),
     ));
 }
@@ -637,7 +754,7 @@ fn collect_category_strings(
 ) -> Option<Vec<String>> {
     let Some(array) = value.as_array() else {
         report.issues.push(ManifestIssue::error(
-            INVALID_CATEGORIES_SHAPE,
+            FacadeIssueCode::InvalidCategoriesShape,
             format!("expected {field_name} to be an array of strings"),
         ));
         return None;
@@ -648,7 +765,7 @@ fn collect_category_strings(
     for (index, item) in array.iter().enumerate() {
         let Some(category) = item.as_str() else {
             report.issues.push(ManifestIssue::error(
-                INVALID_CATEGORY_VALUE,
+                FacadeIssueCode::InvalidCategoryValue,
                 format!("expected {field_name}[{index}] to be a string"),
             ));
             continue;
@@ -667,7 +784,7 @@ fn validate_categories(
 ) {
     if categories.len() > MAX_CRATES_IO_CATEGORIES {
         report.issues.push(ManifestIssue::error(
-            TOO_MANY_CATEGORIES,
+            FacadeIssueCode::TooManyCategories,
             format!(
                 "{field_name} has {} categories; crates.io allows at most {}",
                 categories.len(),
@@ -681,14 +798,14 @@ fn validate_categories(
     for category in categories {
         if !seen.insert(category.as_str()) {
             report.issues.push(ManifestIssue::warning(
-                DUPLICATE_CATEGORY,
+                FacadeIssueCode::DuplicateCategory,
                 format!("{field_name} contains duplicate category `{category}`"),
             ));
         }
 
         if !is_valid_category_slug(category) {
             report.issues.push(ManifestIssue::error(
-                INVALID_CATEGORY_SLUG,
+                FacadeIssueCode::InvalidCategorySlug,
                 format!("`{category}` is not a valid crates.io category slug"),
             ));
         }
@@ -708,7 +825,7 @@ fn validate_workspace_members(workspace: &toml::Table, report: &mut ManifestFile
     for expected in EXPECTED_WORKSPACE_MEMBERS {
         if !members.contains(expected) {
             report.issues.push(ManifestIssue::warning(
-                MISSING_STANDARD_WORKSPACE_MEMBER,
+                FacadeIssueCode::MissingStandardWorkspaceMember,
                 format!("expected [workspace].members to include `{expected}`"),
             ));
         }
@@ -716,7 +833,7 @@ fn validate_workspace_members(workspace: &toml::Table, report: &mut ManifestFile
 
     if members.len() != EXPECTED_WORKSPACE_MEMBERS.len() {
         report.issues.push(ManifestIssue::warning(
-            NON_STANDARD_WORKSPACE_MEMBERS,
+            FacadeIssueCode::NonStandardWorkspaceMembers,
             "expected [workspace].members to be exactly [\"crates/*\"]",
         ));
     }
@@ -735,7 +852,7 @@ fn validate_workspace_repository(
     {
         Some(actual) if actual == expected => {},
         Some(actual) => report.issues.push(ManifestIssue::warning(
-            INVALID_WORKSPACE_REPOSITORY,
+            FacadeIssueCode::InvalidWorkspaceRepository,
             format!("expected [workspace.package].repository = `{expected}`, found `{actual}`"),
         )),
         None => {},
@@ -752,7 +869,7 @@ fn validate_workspace_dependencies(
         .and_then(toml::Value::as_table)
     else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_DEPENDENCIES,
+            FacadeIssueCode::MissingWorkspaceDependencies,
             "missing [workspace.dependencies]",
         ));
         return;
@@ -770,7 +887,7 @@ fn validate_all_workspace_dependency_versions(
     for (dependency_name, dependency) in dependencies {
         let Some(dependency_table) = dependency.as_table() else {
             report.issues.push(ManifestIssue::warning(
-                INVALID_WORKSPACE_DEPENDENCY_SHAPE,
+                FacadeIssueCode::InvalidWorkspaceDependencyShape,
                 format!(
                     "expected [workspace.dependencies].{dependency_name} to be an inline table with version"
                 ),
@@ -781,13 +898,13 @@ fn validate_all_workspace_dependency_versions(
         match dependency_table.get("version") {
             Some(version) if version.as_str().is_some_and(|value| !value.trim().is_empty()) => {},
             Some(_) => report.issues.push(ManifestIssue::warning(
-                INVALID_WORKSPACE_DEPENDENCY_VERSION,
+                FacadeIssueCode::InvalidWorkspaceDependencyVersion,
                 format!(
                     "expected [workspace.dependencies].{dependency_name}.version to be a non-empty string"
                 ),
             )),
             None => report.issues.push(ManifestIssue::warning(
-                MISSING_WORKSPACE_DEPENDENCY_VERSION,
+                FacadeIssueCode::MissingWorkspaceDependencyVersion,
                 format!("missing [workspace.dependencies].{dependency_name}.version"),
             )),
         }
@@ -804,7 +921,7 @@ fn validate_crate_workspace_dependencies(
 
         let Some(dependency) = dependencies.get(dependency_name) else {
             report.issues.push(ManifestIssue::warning(
-                MISSING_WORKSPACE_DEPENDENCY,
+                FacadeIssueCode::MissingWorkspaceDependency,
                 format!("missing [workspace.dependencies].{dependency_name}"),
             ));
             continue;
@@ -812,7 +929,7 @@ fn validate_crate_workspace_dependencies(
 
         let Some(dependency_table) = dependency.as_table() else {
             report.issues.push(ManifestIssue::warning(
-                INVALID_WORKSPACE_DEPENDENCY_SHAPE,
+                FacadeIssueCode::InvalidWorkspaceDependencyShape,
                 format!(
                     "expected [workspace.dependencies].{dependency_name} to be an inline table"
                 ),
@@ -825,13 +942,13 @@ fn validate_crate_workspace_dependencies(
         match dependency_table.get("path").and_then(toml::Value::as_str) {
             Some(actual_path) if actual_path == expected_path => {},
             Some(actual_path) => report.issues.push(ManifestIssue::warning(
-                INVALID_WORKSPACE_DEPENDENCY_PATH,
+                FacadeIssueCode::InvalidWorkspaceDependencyPath,
                 format!(
                     "expected [workspace.dependencies].{dependency_name}.path = `{expected_path}`, found `{actual_path}`"
                 ),
             )),
             None => report.issues.push(ManifestIssue::warning(
-                MISSING_WORKSPACE_DEPENDENCY_PATH,
+                FacadeIssueCode::MissingWorkspaceDependencyPath,
                 format!("missing [workspace.dependencies].{dependency_name}.path"),
             )),
         }
@@ -845,7 +962,7 @@ fn validate_crate_workspace_dependencies(
             && actual_version != expected_version
         {
             report.issues.push(ManifestIssue::warning(
-                MISMATCHED_WORKSPACE_DEPENDENCY_VERSION,
+                FacadeIssueCode::MismatchedWorkspaceDependencyVersion,
                 format!(
                     "expected [workspace.dependencies].{dependency_name}.version = `{expected_version}`, found `{actual_version}`"
                 ),
@@ -875,7 +992,7 @@ fn validate_orphan_workspace_dependency_paths(
 
         if path.starts_with("crates/") && !valid_paths.contains(path) {
             report.issues.push(ManifestIssue::warning(
-                ORPHAN_WORKSPACE_DEPENDENCY_PATH,
+                FacadeIssueCode::OrphanWorkspaceDependencyPath,
                 format!(
                     "[workspace.dependencies].{dependency_name}.path points to `{path}`, but no matching crate manifest was found"
                 ),
@@ -894,11 +1011,11 @@ fn validate_workspace_lints(workspace: &toml::Table, report: &mut ManifestFileRe
     match unsafe_code {
         Some("forbid") => {},
         Some(actual) => report.issues.push(ManifestIssue::warning(
-            INVALID_WORKSPACE_UNSAFE_CODE_POLICY,
+            FacadeIssueCode::InvalidWorkspaceUnsafeCodePolicy,
             format!("expected [workspace.lints.rust].unsafe_code = \"forbid\", found `{actual}`"),
         )),
         None => report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_UNSAFE_CODE_POLICY,
+            FacadeIssueCode::MissingWorkspaceUnsafeCodePolicy,
             "missing [workspace.lints.rust].unsafe_code = \"forbid\"",
         )),
     }
@@ -910,7 +1027,7 @@ fn validate_workspace_lints(workspace: &toml::Table, report: &mut ManifestFileRe
 
     if clippy.is_none() {
         report.issues.push(ManifestIssue::warning(
-            MISSING_WORKSPACE_CLIPPY_LINTS,
+            FacadeIssueCode::MissingWorkspaceClippyLints,
             "missing [workspace.lints.clippy]",
         ));
     }
@@ -936,7 +1053,7 @@ fn validate_facade_child_dependencies(
 
     let Some(dependencies) = manifest.get("dependencies").and_then(toml::Value::as_table) else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_FACADE_DEPENDENCIES,
+            FacadeIssueCode::MissingFacadeDependencies,
             "facade crate has child crates but no [dependencies]",
         ));
         return;
@@ -945,7 +1062,7 @@ fn validate_facade_child_dependencies(
     for child_crate in child_crate_names {
         let Some(dependency) = dependencies.get(child_crate) else {
             report.issues.push(ManifestIssue::warning(
-                MISSING_FACADE_CHILD_DEPENDENCY,
+                FacadeIssueCode::MissingFacadeChildDependency,
                 format!("missing [dependencies].{child_crate}"),
             ));
             continue;
@@ -953,7 +1070,7 @@ fn validate_facade_child_dependencies(
 
         let Some(dependency_table) = dependency.as_table() else {
             report.issues.push(ManifestIssue::warning(
-                INVALID_FACADE_CHILD_DEPENDENCY,
+                FacadeIssueCode::InvalidFacadeChildDependency,
                 format!("expected [dependencies].{child_crate} to be an inline table"),
             ));
             continue;
@@ -961,7 +1078,7 @@ fn validate_facade_child_dependencies(
 
         if !is_workspace_true(dependency) {
             report.issues.push(ManifestIssue::warning(
-                INVALID_FACADE_CHILD_DEPENDENCY,
+                FacadeIssueCode::InvalidFacadeChildDependency,
                 format!("expected [dependencies].{child_crate}.workspace = true"),
             ));
         }
@@ -972,11 +1089,11 @@ fn validate_facade_child_dependencies(
         {
             Some(true) => {},
             Some(false) => report.issues.push(ManifestIssue::warning(
-                INVALID_FACADE_CHILD_DEPENDENCY,
+                FacadeIssueCode::InvalidFacadeChildDependency,
                 format!("expected [dependencies].{child_crate}.optional = true"),
             )),
             None => report.issues.push(ManifestIssue::warning(
-                MISSING_FACADE_CHILD_DEPENDENCY_OPTIONAL,
+                FacadeIssueCode::MissingFacadeChildDependencyOptional,
                 format!("missing [dependencies].{child_crate}.optional = true"),
             )),
         }
@@ -994,7 +1111,7 @@ fn validate_facade_features(
 
     let Some(features) = manifest.get("features").and_then(toml::Value::as_table) else {
         report.issues.push(ManifestIssue::warning(
-            MISSING_FACADE_FEATURES,
+            FacadeIssueCode::MissingFacadeFeatures,
             "facade crate has child crates but no [features]",
         ));
         return;
@@ -1003,11 +1120,11 @@ fn validate_facade_features(
     match features.get("default").and_then(toml::Value::as_array) {
         Some(default_features) if default_features.is_empty() => {},
         Some(_) => report.issues.push(ManifestIssue::warning(
-            INVALID_FACADE_DEFAULT_FEATURES,
+            FacadeIssueCode::InvalidFacadeDefaultFeatures,
             "expected [features].default = []",
         )),
         None => report.issues.push(ManifestIssue::warning(
-            MISSING_FACADE_DEFAULT_FEATURES,
+            FacadeIssueCode::MissingFacadeDefaultFeatures,
             "missing [features].default = []",
         )),
     }
@@ -1019,7 +1136,7 @@ fn validate_facade_features(
 
     if full_features.is_none() {
         report.issues.push(ManifestIssue::warning(
-            MISSING_FACADE_FULL_FEATURE,
+            FacadeIssueCode::MissingFacadeFullFeature,
             "missing [features].full",
         ));
     }
@@ -1030,7 +1147,7 @@ fn validate_facade_features(
         /* if let Some(full_features) = &full_features {
             if !full_features.contains(feature_name.as_str()) {
                 report.issues.push(ManifestIssue::warning(
-                    MISSING_FULL_FEATURE_MEMBER,
+                    FacadeIssueCode::MissingFullFeatureMember,
                     format!("expected [features].full to include `{feature_name}`"),
                 ));
             }
@@ -1040,7 +1157,7 @@ fn validate_facade_features(
             && !full_features.contains(feature_name.as_str())
         {
             report.issues.push(ManifestIssue::warning(
-                MISSING_FULL_FEATURE_MEMBER,
+                FacadeIssueCode::MissingFullFeatureMember,
                 format!("expected [features].full to include `{feature_name}`"),
             ));
         }
@@ -1050,7 +1167,7 @@ fn validate_facade_features(
             .and_then(toml::Value::as_array)
         else {
             report.issues.push(ManifestIssue::warning(
-                MISSING_FACADE_CHILD_FEATURE,
+                FacadeIssueCode::MissingFacadeChildFeature,
                 format!("missing [features].{feature_name}"),
             ));
             continue;
@@ -1061,7 +1178,7 @@ fn validate_facade_features(
 
         if !feature_values.contains(expected_dep.as_str()) {
             report.issues.push(ManifestIssue::warning(
-                INVALID_FACADE_CHILD_FEATURE,
+                FacadeIssueCode::InvalidFacadeChildFeature,
                 format!("expected [features].{feature_name} to include `{expected_dep}`"),
             ));
         }
@@ -1193,12 +1310,20 @@ fn array_string_set(array: &[toml::Value]) -> BTreeSet<String> {
         .collect()
 }
 
+fn manifest_diagnostic_code(code: &str) -> FacadeIssueCode {
+    match code {
+        "read-manifest" => FacadeIssueCode::ReadManifest,
+        "parse-manifest" => FacadeIssueCode::ParseManifest,
+        _ => FacadeIssueCode::InvalidManifest,
+    }
+}
+
 fn read_manifest(path: &Path, report: &mut ManifestFileReport) -> Option<toml::Value> {
     let read = read_manifest_with_diagnostics(path);
 
     if let Some(diagnostic) = read.diagnostic() {
         report.issues.push(ManifestIssue::error(
-            diagnostic.code,
+            manifest_diagnostic_code(diagnostic.code),
             diagnostic.message.clone(),
         ));
     }

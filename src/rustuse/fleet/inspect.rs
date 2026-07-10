@@ -4,15 +4,15 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 #[derive(Debug, Default)]
-struct RootSummary {
-    has_cli: bool,
-    has_docs: bool,
-    use_dir_count: usize,
-    facade_git_count: usize,
-    missing_git: Vec<PathBuf>,
+pub(crate) struct RootSummary {
+    pub(crate) has_cli: bool,
+    pub(crate) has_docs: bool,
+    pub(crate) use_dir_count: usize,
+    pub(crate) facade_git_count: usize,
+    pub(crate) missing_git: Vec<PathBuf>,
 }
 
-fn inspect_root(root: &Path) -> Result<RootSummary> {
+pub(crate) fn inspect_root(root: &Path) -> Result<RootSummary> {
     let mut summary = RootSummary {
         has_cli: root.join("cli").is_dir(),
         has_docs: root.join("docs").is_dir(),
@@ -51,7 +51,7 @@ fn inspect_root(root: &Path) -> Result<RootSummary> {
     Ok(summary)
 }
 
-fn display_name(path: &Path) -> &str {
+pub(crate) fn display_name(path: &Path) -> &str {
     path.file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("<unknown>")

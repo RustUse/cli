@@ -1,4 +1,4 @@
-//! Root `--help` and non-interactive behavior.
+//! CLI `--help` and non-interactive behavior.
 
 mod common;
 

@@ -25,9 +25,6 @@ pub struct CheckCiArgs {
 pub enum CheckKind {
     Auto,
     Facade,
-    Root,
-    Catalog,
-    Ci,
 }
 
 pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
@@ -41,7 +38,7 @@ pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
     let diagnostics = FacadeDiagnostics::inspect(&args.path)?;
     let status = diagnostics.status();
     let summary = format!(
-        "RustUse CI check - root: {}; errors: {}; warnings: {}",
+        "RustUse CI check - facade: {}; errors: {}; warnings: {}",
         diagnostics.facade.root.display(),
         diagnostics.error_count(),
         diagnostics.warning_count()

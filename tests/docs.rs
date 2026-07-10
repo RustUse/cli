@@ -5,19 +5,12 @@ mod common;
 use common::{CliBinary, run_raw, run_success};
 
 #[test]
-fn docs_without_name_fails_with_required_name_error() {
+fn docs_without_name_returns_root_url() {
     let bin = CliBinary::rustuse();
-    let output = run_raw(&bin, &["docs"]);
-
+    let stdout = run_success(&bin, &["docs"]);
     assert!(
-        !output.status.success(),
-        "docs without name should fail with clap usage error"
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("required arguments") && stderr.contains("<NAME>"),
-        "docs error should mention missing name argument:\n{stderr}"
+        stdout.contains("https://rustuse.org/"),
+        "missing root docs URL:\n{stdout}"
     );
 }
 
@@ -27,8 +20,8 @@ fn docs_with_name_keeps_named_surface() {
     let stdout = run_success(&bin, &["docs", "use-geometry"]);
 
     assert!(
-        stdout.contains("name=use-geometry"),
-        "docs output missing named detail:\n{stdout}"
+        stdout.contains("https://rustuse.org/use-geometry/"),
+        "docs output missing named URL:\n{stdout}"
     );
 }
 

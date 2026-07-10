@@ -12,6 +12,8 @@ use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use crate::output::Output;
 
 use super::DevCommandContext;
+use super::fix::{self, DevFixArgs};
+use super::inspect::{self, DevInspectArgs};
 use super::report::{self, DevReportArgs};
 
 pub(crate) fn run(output: Output, context: DevCommandContext) -> Result<()> {
@@ -40,7 +42,12 @@ pub(crate) fn run(output: Output, context: DevCommandContext) -> Result<()> {
         );
     }
 
-    let choices = ["Generate RustUse development report", "Exit"];
+    let choices = [
+        "Generate RustUse development report",
+        "Inspect RustUse facade",
+        "Fix RustUse facade",
+        "Exit",
+    ];
 
     let selected = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("What RustUse dev task do you want to run?")
@@ -59,6 +66,27 @@ pub(crate) fn run(output: Output, context: DevCommandContext) -> Result<()> {
             },
             output,
             context,
+        ),
+        1 => inspect::run(
+            DevInspectArgs {
+                path: prompt_path("Path to inspect", ".")?,
+            },
+            output,
+        ),
+        2 => fix::run(
+            DevFixArgs {
+                path: prompt_path("Path to fix", ".")?,
+                all: Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Fix all issues?")
+                    .default(false)
+                    .interact()?,
+                codes: Vec::new(),
+                write: Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Write changes?")
+                    .default(false)
+                    .interact()?,
+            },
+            output,
         ),
         _ => Ok(()),
     }

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::output::Output;
-use crate::rustuse::facade::codes::manifest_shape_bucket;
+use crate::rustuse::facade::codes::{FacadeIssueBucket, FacadeIssueCode};
 use crate::rustuse::facade::manifest::FacadeManifestReport;
 use crate::rustuse::fleet::diagnostics::FleetDiagnostics;
 use crate::rustuse::fleet::discover::{FleetFacadeEntry, display_version};
@@ -62,6 +62,14 @@ fn write_summary(markdown: &mut String, diagnostics: &FleetDiagnostics) {
     markdown.push_str(&format!("- Fleet: `{}`\n", diagnostics.fleet.display()));
     markdown.push_str(&format!("- Fleet name: `{}`\n", diagnostics.name));
     markdown.push_str(&format!(
+        "- CLI repository present: {}\n",
+        yes_no(diagnostics.has_cli())
+    ));
+    markdown.push_str(&format!(
+        "- Documentation repository present: {}\n",
+        yes_no(diagnostics.has_docs())
+    ));
+    markdown.push_str(&format!(
         "- Standard fleet name: {}\n",
         if diagnostics.name == "rustuse" {
             "yes"
@@ -104,6 +112,20 @@ fn write_summary(markdown: &mut String, diagnostics: &FleetDiagnostics) {
         diagnostics.invalid_category_count()
     ));
     markdown.push_str(&format!("- Status: **{}**\n\n", diagnostics.status()));
+
+    let missing_git = diagnostics.missing_facade_git_names().collect::<Vec<_>>();
+
+    if !missing_git.is_empty() {
+        markdown.push_str("- Facades missing `.git`: ");
+        markdown.push_str(
+            &missing_git
+                .iter()
+                .map(|name| format!("`{name}`"))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        markdown.push_str("\n\n");
+    }
 }
 
 fn write_contents(markdown: &mut String) {
@@ -167,7 +189,7 @@ fn write_manifest_health(markdown: &mut String, diagnostics: &FleetDiagnostics) 
 }
 
 fn write_manifest_issue_summary(markdown: &mut String, reports: &[FacadeManifestReport]) {
-    let mut summary = BTreeMap::<(&'static str, &'static str), usize>::new();
+    let mut summary = BTreeMap::<(&'static str, FacadeIssueCode), usize>::new();
 
     for facade_report in reports {
         for manifest in &facade_report.manifests {
@@ -192,7 +214,7 @@ fn write_manifest_issue_summary(markdown: &mut String, reports: &[FacadeManifest
             .2
             .cmp(&left.2)
             .then_with(|| left.0.cmp(right.0))
-            .then_with(|| left.1.cmp(right.1))
+            .then_with(|| left.1.cmp(&right.1))
     });
 
     markdown.push_str("### Manifest Issue Summary\n\n");
@@ -200,20 +222,22 @@ fn write_manifest_issue_summary(markdown: &mut String, reports: &[FacadeManifest
     markdown.push_str("|---|---|---:|\n");
 
     for (severity, code, count) in rows {
-        markdown.push_str(&format!("| `{severity}` | `{code}` | {count} |\n"));
+        markdown.push_str(&format!(
+            "| `{severity}` | `{}` | {count} |\n",
+            code.as_str()
+        ));
     }
 
     markdown.push('\n');
 }
 
 fn write_manifest_shape_summary(markdown: &mut String, reports: &[FacadeManifestReport]) {
-    let mut buckets = BTreeMap::<&'static str, usize>::new();
+    let mut buckets = BTreeMap::<FacadeIssueBucket, usize>::new();
 
     for facade_report in reports {
         for manifest in &facade_report.manifests {
             for issue in &manifest.issues {
-                let bucket = manifest_shape_bucket(issue.code);
-                *buckets.entry(bucket).or_default() += 1;
+                *buckets.entry(issue.code.bucket()).or_default() += 1;
             }
         }
     }
@@ -224,14 +248,14 @@ fn write_manifest_shape_summary(markdown: &mut String, reports: &[FacadeManifest
 
     let mut rows = buckets.into_iter().collect::<Vec<_>>();
 
-    rows.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
+    rows.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
 
     markdown.push_str("### Manifest Shape Summary\n\n");
     markdown.push_str("| Shape Area | Issues |\n");
     markdown.push_str("|---|---:|\n");
 
     for (bucket, count) in rows {
-        markdown.push_str(&format!("| {bucket} | {count} |\n"));
+        markdown.push_str(&format!("| {} | {count} |\n", bucket.as_str()));
     }
 
     markdown.push('\n');
@@ -285,7 +309,9 @@ fn write_manifest_top_offenders(
         "Showing the top {} facade(s) by manifest issue count.\n\n",
         limit.min(reports_with_issues.len())
     ));
-    markdown.push_str("| Rank | Status | Facade | Manifests | Issues | Errors | Warnings | Invalid Categories |\n");
+    markdown.push_str(
+        "| Rank | Status | Facade | Manifests | Issues | Errors | Warnings | Invalid Categories |\n",
+    );
     markdown.push_str("|---:|---|---|---:|---:|---:|---:|---:|\n");
 
     for (index, report) in reports_with_issues.iter().take(limit).enumerate() {

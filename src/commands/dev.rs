@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 
 use crate::output::Output;
 
+pub mod fix;
 pub mod inspect;
 pub mod interactive;
 pub mod report;

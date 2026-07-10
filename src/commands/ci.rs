@@ -13,7 +13,7 @@ pub struct CiArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum CiCommand {
-    /// Check a RustUse root, facade, or repository for rule violations.
+    /// Check a RustUse facade repository for rule violations.
     Check(check::CheckCiArgs),
 }
 

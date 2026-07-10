@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::rustuse::facade::codes::{FacadeIssueBucket, FacadeIssueCode};
 use crate::rustuse::facade::diagnostics::FacadeDiagnostics;
 use crate::rustuse::report::destination::report_path;
 
@@ -40,10 +41,10 @@ pub(crate) fn write_action_plan(markdown: &mut String, diagnostics: &FacadeDiagn
 }
 
 fn write_issue_group_summary(markdown: &mut String, diagnostics: &FacadeDiagnostics) {
-    let mut buckets = BTreeMap::<&str, usize>::new();
+    let mut buckets = BTreeMap::<FacadeIssueBucket, usize>::new();
 
     for issue in &diagnostics.issues {
-        *buckets.entry(issue.bucket).or_default() += 1;
+        *buckets.entry(issue.bucket()).or_default() += 1;
     }
 
     if buckets.is_empty() {
@@ -55,14 +56,14 @@ fn write_issue_group_summary(markdown: &mut String, diagnostics: &FacadeDiagnost
     markdown.push_str("|---|---:|\n");
 
     for (bucket, count) in buckets {
-        markdown.push_str(&format!("| {bucket} | {count} |\n"));
+        markdown.push_str(&format!("| {} | {count} |\n", bucket.as_str()));
     }
 
     markdown.push('\n');
 }
 
 fn write_fixable_issue_summary(markdown: &mut String, diagnostics: &FacadeDiagnostics) {
-    let mut fixable_by_code = BTreeMap::<&str, usize>::new();
+    let mut fixable_by_code = BTreeMap::<FacadeIssueCode, usize>::new();
 
     for issue in diagnostics.fixable_issues() {
         *fixable_by_code.entry(issue.code).or_default() += 1;
@@ -77,7 +78,7 @@ fn write_fixable_issue_summary(markdown: &mut String, diagnostics: &FacadeDiagno
     markdown.push_str("|---|---:|\n");
 
     for (code, count) in fixable_by_code {
-        markdown.push_str(&format!("| `{code}` | {count} |\n"));
+        markdown.push_str(&format!("| `{}` | {count} |\n", code.as_str()));
     }
 
     markdown.push('\n');
@@ -90,8 +91,8 @@ fn write_priority_issues(markdown: &mut String, diagnostics: &FacadeDiagnostics)
         left.severity
             .sort_rank()
             .cmp(&right.severity.sort_rank())
-            .then_with(|| left.bucket.cmp(right.bucket))
-            .then_with(|| left.code.cmp(right.code))
+            .then_with(|| left.bucket().cmp(&right.bucket()))
+            .then_with(|| left.code.cmp(&right.code))
             .then_with(|| left.message.cmp(&right.message))
     });
 
@@ -108,7 +109,7 @@ fn write_priority_issues(markdown: &mut String, diagnostics: &FacadeDiagnostics)
         markdown.push_str(&format!(
             "| {} | `{}` | `{}` | {} |\n",
             issue.severity.as_str(),
-            issue.code,
+            issue.code.as_str(),
             path,
             issue.message
         ));

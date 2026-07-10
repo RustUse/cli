@@ -1,167 +1,442 @@
-pub(crate) const SHAPE_WORKSPACE: &str = "Workspace shape";
-pub(crate) const SHAPE_FACADE_WIRING: &str = "Facade wiring";
-pub(crate) const SHAPE_PACKAGE: &str = "Package shape";
-pub(crate) const SHAPE_CATEGORY_METADATA: &str = "Category metadata";
-pub(crate) const SHAPE_GENERAL_METADATA: &str = "General metadata";
+use std::fmt;
 
-pub(crate) const MISSING_STANDARD_WORKSPACE_MEMBER: &str = "missing-standard-workspace-member";
-pub(crate) const NON_STANDARD_WORKSPACE_MEMBERS: &str = "non-standard-workspace-members";
-pub(crate) const MISSING_WORKSPACE: &str = "missing-workspace";
-pub(crate) const MISSING_WORKSPACE_MEMBERS: &str = "missing-workspace-members";
-pub(crate) const INVALID_WORKSPACE_MEMBERS: &str = "invalid-workspace-members";
-pub(crate) const MISSING_WORKSPACE_RESOLVER: &str = "missing-workspace-resolver";
-pub(crate) const INVALID_WORKSPACE_RESOLVER: &str = "workspace-resolver";
-pub(crate) const MISSING_WORKSPACE_PACKAGE: &str = "missing-workspace-package";
-pub(crate) const MISSING_WORKSPACE_PACKAGE_FIELD: &str = "missing-workspace-package-field";
-pub(crate) const INVALID_WORKSPACE_REPOSITORY: &str = "invalid-workspace-repository";
-pub(crate) const MISSING_WORKSPACE_DEPENDENCIES: &str = "missing-workspace-dependencies";
-pub(crate) const MISSING_WORKSPACE_DEPENDENCY: &str = "missing-workspace-dependency";
-pub(crate) const INVALID_WORKSPACE_DEPENDENCY: &str = "invalid-workspace-dependency";
-pub(crate) const INVALID_WORKSPACE_DEPENDENCY_SHAPE: &str = "invalid-workspace-dependency-shape";
-pub(crate) const INVALID_WORKSPACE_DEPENDENCY_PATH: &str = "invalid-workspace-dependency-path";
-pub(crate) const MISSING_WORKSPACE_DEPENDENCY_PATH: &str = "missing-workspace-dependency-path";
-pub(crate) const MISSING_WORKSPACE_DEPENDENCY_VERSION: &str =
-    "missing-workspace-dependency-version";
-pub(crate) const INVALID_WORKSPACE_DEPENDENCY_VERSION: &str =
-    "invalid-workspace-dependency-version";
-pub(crate) const MISMATCHED_WORKSPACE_DEPENDENCY_VERSION: &str =
-    "mismatched-workspace-dependency-version";
-pub(crate) const ORPHAN_WORKSPACE_DEPENDENCY_PATH: &str = "orphan-workspace-dependency-path";
-pub(crate) const MISSING_WORKSPACE_UNSAFE_CODE_POLICY: &str =
-    "missing-workspace-unsafe-code-policy";
-pub(crate) const INVALID_WORKSPACE_UNSAFE_CODE_POLICY: &str =
-    "invalid-workspace-unsafe-code-policy";
-pub(crate) const MISSING_WORKSPACE_CLIPPY_LINTS: &str = "missing-workspace-clippy-lints";
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum FacadeIssueBucket {
+    WorkspaceShape,
+    FacadeWiring,
+    PackageShape,
+    CategoryMetadata,
+    RepositoryShape,
+    ToolingSurface,
+    ReleaseSurface,
+}
 
-pub(crate) const MISSING_FACADE_DEPENDENCIES: &str = "missing-facade-dependencies";
-pub(crate) const MISSING_FACADE_CHILD_DEPENDENCY: &str = "missing-facade-child-dependency";
-pub(crate) const INVALID_FACADE_CHILD_DEPENDENCY: &str = "invalid-facade-child-dependency";
-pub(crate) const MISSING_FACADE_CHILD_DEPENDENCY_OPTIONAL: &str =
-    "missing-facade-child-dependency-optional";
-pub(crate) const MISSING_FACADE_FEATURES: &str = "missing-facade-features";
-pub(crate) const INVALID_FACADE_DEFAULT_FEATURES: &str = "invalid-facade-default-features";
-pub(crate) const MISSING_FACADE_DEFAULT_FEATURES: &str = "missing-facade-default-features";
-pub(crate) const MISSING_FACADE_FULL_FEATURE: &str = "missing-facade-full-feature";
-pub(crate) const MISSING_FULL_FEATURE_MEMBER: &str = "missing-full-feature-member";
-pub(crate) const MISSING_FACADE_CHILD_FEATURE: &str = "missing-facade-child-feature";
-pub(crate) const INVALID_FACADE_CHILD_FEATURE: &str = "invalid-facade-child-feature";
-
-pub(crate) const INVALID_PACKAGE_HOMEPAGE: &str = "invalid-package-homepage";
-pub(crate) const INVALID_PACKAGE_DOCUMENTATION: &str = "invalid-package-documentation";
-pub(crate) const MISSING_PACKAGE_README_FILE: &str = "missing-package-readme-file";
-pub(crate) const MISSING_DOCS_RS_ALL_FEATURES: &str = "missing-docs-rs-all-features";
-pub(crate) const INVALID_DOCS_RS_ALL_FEATURES: &str = "invalid-docs-rs-all-features";
-pub(crate) const MISSING_LINTS_WORKSPACE: &str = "missing-lints-workspace";
-pub(crate) const PACKAGE_NAME_DIRECTORY_MISMATCH: &str = "package-name-directory-mismatch";
-pub(crate) const INVALID_FACADE_PACKAGE_NAME: &str = "invalid-facade-package-name";
-pub(crate) const INVALID_CHILD_PACKAGE_NAME: &str = "invalid-child-package-name";
-
-pub(crate) const INVALID_CATEGORY_SLUG: &str = "invalid-category-slug";
-pub(crate) const TOO_MANY_CATEGORIES: &str = "too-many-categories";
-pub(crate) const DUPLICATE_CATEGORY: &str = "duplicate-category";
-pub(crate) const INVALID_CATEGORIES_SHAPE: &str = "invalid-categories-shape";
-pub(crate) const INVALID_CATEGORY_VALUE: &str = "invalid-category-value";
-pub(crate) const MISSING_WORKSPACE_CATEGORIES: &str = "missing-workspace-categories";
-pub(crate) const MISSING_PACKAGE_CATEGORIES: &str = "missing-package-categories";
-pub(crate) const MISSING_INHERITED_CATEGORIES: &str = "missing-inherited-categories";
-
-pub(crate) const WORKSPACE_SHAPE_CODES: &[&str] = &[
-    MISSING_STANDARD_WORKSPACE_MEMBER,
-    NON_STANDARD_WORKSPACE_MEMBERS,
-    MISSING_WORKSPACE,
-    MISSING_WORKSPACE_MEMBERS,
-    INVALID_WORKSPACE_MEMBERS,
-    MISSING_WORKSPACE_RESOLVER,
-    INVALID_WORKSPACE_RESOLVER,
-    MISSING_WORKSPACE_PACKAGE,
-    MISSING_WORKSPACE_PACKAGE_FIELD,
-    INVALID_WORKSPACE_REPOSITORY,
-    MISSING_WORKSPACE_DEPENDENCIES,
-    MISSING_WORKSPACE_DEPENDENCY,
-    INVALID_WORKSPACE_DEPENDENCY,
-    INVALID_WORKSPACE_DEPENDENCY_SHAPE,
-    INVALID_WORKSPACE_DEPENDENCY_PATH,
-    MISSING_WORKSPACE_DEPENDENCY_PATH,
-    MISSING_WORKSPACE_DEPENDENCY_VERSION,
-    INVALID_WORKSPACE_DEPENDENCY_VERSION,
-    MISMATCHED_WORKSPACE_DEPENDENCY_VERSION,
-    ORPHAN_WORKSPACE_DEPENDENCY_PATH,
-    MISSING_WORKSPACE_UNSAFE_CODE_POLICY,
-    INVALID_WORKSPACE_UNSAFE_CODE_POLICY,
-    MISSING_WORKSPACE_CLIPPY_LINTS,
-];
-
-pub(crate) const FACADE_WIRING_CODES: &[&str] = &[
-    MISSING_FACADE_DEPENDENCIES,
-    MISSING_FACADE_CHILD_DEPENDENCY,
-    INVALID_FACADE_CHILD_DEPENDENCY,
-    MISSING_FACADE_CHILD_DEPENDENCY_OPTIONAL,
-    MISSING_FACADE_FEATURES,
-    INVALID_FACADE_DEFAULT_FEATURES,
-    MISSING_FACADE_DEFAULT_FEATURES,
-    MISSING_FACADE_FULL_FEATURE,
-    MISSING_FULL_FEATURE_MEMBER,
-    MISSING_FACADE_CHILD_FEATURE,
-    INVALID_FACADE_CHILD_FEATURE,
-];
-
-pub(crate) const PACKAGE_SHAPE_CODES: &[&str] = &[
-    INVALID_PACKAGE_HOMEPAGE,
-    INVALID_PACKAGE_DOCUMENTATION,
-    MISSING_PACKAGE_README_FILE,
-    MISSING_DOCS_RS_ALL_FEATURES,
-    INVALID_DOCS_RS_ALL_FEATURES,
-    MISSING_LINTS_WORKSPACE,
-    PACKAGE_NAME_DIRECTORY_MISMATCH,
-    INVALID_FACADE_PACKAGE_NAME,
-    INVALID_CHILD_PACKAGE_NAME,
-];
-
-pub(crate) const CATEGORY_METADATA_CODES: &[&str] = &[
-    INVALID_CATEGORY_SLUG,
-    TOO_MANY_CATEGORIES,
-    DUPLICATE_CATEGORY,
-    INVALID_CATEGORIES_SHAPE,
-    INVALID_CATEGORY_VALUE,
-    MISSING_WORKSPACE_CATEGORIES,
-    MISSING_PACKAGE_CATEGORIES,
-    MISSING_INHERITED_CATEGORIES,
-];
-
-/* pub(crate) const WORKSPACE_DEPENDENCY_VERSION_CODES: &[&str] = &[
-    MISSING_WORKSPACE_DEPENDENCY_VERSION,
-    INVALID_WORKSPACE_DEPENDENCY_VERSION,
-    MISMATCHED_WORKSPACE_DEPENDENCY_VERSION,
-]; */
-
-pub(crate) fn manifest_shape_bucket(code: &str) -> &'static str {
-    if WORKSPACE_SHAPE_CODES.contains(&code) {
-        SHAPE_WORKSPACE
-    } else if FACADE_WIRING_CODES.contains(&code) {
-        SHAPE_FACADE_WIRING
-    } else if PACKAGE_SHAPE_CODES.contains(&code) {
-        SHAPE_PACKAGE
-    } else if CATEGORY_METADATA_CODES.contains(&code) {
-        SHAPE_CATEGORY_METADATA
-    } else {
-        SHAPE_GENERAL_METADATA
+impl FacadeIssueBucket {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::WorkspaceShape => "Workspace shape",
+            Self::FacadeWiring => "Facade wiring",
+            Self::PackageShape => "Package shape",
+            Self::CategoryMetadata => "Category metadata",
+            Self::RepositoryShape => "Repository shape",
+            Self::ToolingSurface => "Tooling surface",
+            Self::ReleaseSurface => "Release surface",
+        }
     }
 }
 
-/* pub(crate) fn is_workspace_dependency_version_code(code: &str) -> bool {
-    WORKSPACE_DEPENDENCY_VERSION_CODES.contains(&code)
-} */
+impl fmt::Display for FacadeIssueBucket {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
 
-pub(crate) const MISSING_GIT_REPOSITORY: &str = "missing-git-repository";
-pub(crate) const MISSING_ROOT_MANIFEST: &str = "missing-root-manifest";
-pub(crate) const MISSING_CRATES_DIRECTORY: &str = "missing-crates-directory";
-pub(crate) const MISSING_CHILD_CRATES: &str = "missing-child-crates";
-pub(crate) const MISSING_REQUIRED_FILE: &str = "missing-required-file";
-pub(crate) const MISSING_REQUIRED_DIRECTORY: &str = "missing-required-directory";
-pub(crate) const MISSING_CRATE_LIB: &str = "missing-crate-lib";
-pub(crate) const MISSING_FACADE_PRELUDE: &str = "missing-facade-prelude";
-pub(crate) const MISSING_TOOLING_SURFACE: &str = "missing-tooling-surface";
-pub(crate) const MISSING_GITHUB_CI_CD_SURFACE: &str = "missing-github-ci-cd-surface";
-pub(crate) const MISSING_RELEASE_SURFACE: &str = "missing-release-surface";
-pub(crate) const MISSING_RELEASE_CI_SURFACE: &str = "missing-release-ci-surface";
-pub(crate) const NON_STANDARD_PATH: &str = "non-standard-path";
+macro_rules! define_facade_issue_codes {
+    (
+        $(
+            $variant:ident => {
+                id: $id:literal,
+                bucket: $bucket:ident,
+            };
+        )+
+    ) => {
+        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        pub(crate) enum FacadeIssueCode {
+            $(
+                $variant,
+            )+
+        }
+
+        impl FacadeIssueCode {
+            pub(crate) const fn as_str(self) -> &'static str {
+                match self {
+                    $(
+                        Self::$variant => $id,
+                    )+
+                }
+            }
+
+            pub(crate) const fn bucket(self) -> FacadeIssueBucket {
+                match self {
+                    $(
+                        Self::$variant => FacadeIssueBucket::$bucket,
+                    )+
+                }
+            }
+        }
+
+        impl fmt::Display for FacadeIssueCode {
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str(self.as_str())
+            }
+        }
+
+        #[cfg(test)]
+        const ALL_FACADE_ISSUE_CODES: &[FacadeIssueCode] = &[
+            $(
+                FacadeIssueCode::$variant,
+            )+
+        ];
+    };
+}
+
+define_facade_issue_codes! {
+    MissingStandardWorkspaceMember => {
+        id: "missing-standard-workspace-member",
+        bucket: WorkspaceShape,
+    };
+    NonStandardWorkspaceMembers => {
+        id: "non-standard-workspace-members",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspace => {
+        id: "missing-workspace",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceMembers => {
+        id: "missing-workspace-members",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceMembers => {
+        id: "invalid-workspace-members",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceResolver => {
+        id: "missing-workspace-resolver",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceResolver => {
+        id: "invalid-workspace-resolver",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspacePackage => {
+        id: "missing-workspace-package",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspacePackageField => {
+        id: "missing-workspace-package-field",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceRepository => {
+        id: "invalid-workspace-repository",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceDependencies => {
+        id: "missing-workspace-dependencies",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceDependency => {
+        id: "missing-workspace-dependency",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceDependencyShape => {
+        id: "invalid-workspace-dependency-shape",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceDependencyPath => {
+        id: "invalid-workspace-dependency-path",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceDependencyPath => {
+        id: "missing-workspace-dependency-path",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceDependencyVersion => {
+        id: "missing-workspace-dependency-version",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceDependencyVersion => {
+        id: "invalid-workspace-dependency-version",
+        bucket: WorkspaceShape,
+    };
+    MismatchedWorkspaceDependencyVersion => {
+        id: "mismatched-workspace-dependency-version",
+        bucket: WorkspaceShape,
+    };
+    OrphanWorkspaceDependencyPath => {
+        id: "orphan-workspace-dependency-path",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceUnsafeCodePolicy => {
+        id: "missing-workspace-unsafe-code-policy",
+        bucket: WorkspaceShape,
+    };
+    InvalidWorkspaceUnsafeCodePolicy => {
+        id: "invalid-workspace-unsafe-code-policy",
+        bucket: WorkspaceShape,
+    };
+    MissingWorkspaceClippyLints => {
+        id: "missing-workspace-clippy-lints",
+        bucket: WorkspaceShape,
+    };
+
+    MissingFacadeDependencies => {
+        id: "missing-facade-dependencies",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeChildDependency => {
+        id: "missing-facade-child-dependency",
+        bucket: FacadeWiring,
+    };
+    InvalidFacadeChildDependency => {
+        id: "invalid-facade-child-dependency",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeChildDependencyOptional => {
+        id: "missing-facade-child-dependency-optional",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeFeatures => {
+        id: "missing-facade-features",
+        bucket: FacadeWiring,
+    };
+    InvalidFacadeDefaultFeatures => {
+        id: "invalid-facade-default-features",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeDefaultFeatures => {
+        id: "missing-facade-default-features",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeFullFeature => {
+        id: "missing-facade-full-feature",
+        bucket: FacadeWiring,
+    };
+    MissingFullFeatureMember => {
+        id: "missing-full-feature-member",
+        bucket: FacadeWiring,
+    };
+    MissingFacadeChildFeature => {
+        id: "missing-facade-child-feature",
+        bucket: FacadeWiring,
+    };
+    InvalidFacadeChildFeature => {
+        id: "invalid-facade-child-feature",
+        bucket: FacadeWiring,
+    };
+
+    InvalidPackageHomepage => {
+        id: "invalid-package-homepage",
+        bucket: PackageShape,
+    };
+    InvalidPackageDocumentation => {
+        id: "invalid-package-documentation",
+        bucket: PackageShape,
+    };
+    MissingPackageReadmeFile => {
+        id: "missing-package-readme-file",
+        bucket: PackageShape,
+    };
+    MissingDocsRsAllFeatures => {
+        id: "missing-docs-rs-all-features",
+        bucket: PackageShape,
+    };
+    InvalidDocsRsAllFeatures => {
+        id: "invalid-docs-rs-all-features",
+        bucket: PackageShape,
+    };
+    MissingLintsWorkspace => {
+        id: "missing-lints-workspace",
+        bucket: PackageShape,
+    };
+    PackageNameDirectoryMismatch => {
+        id: "package-name-directory-mismatch",
+        bucket: PackageShape,
+    };
+    InvalidFacadePackageName => {
+        id: "invalid-facade-package-name",
+        bucket: PackageShape,
+    };
+    InvalidChildPackageName => {
+        id: "invalid-child-package-name",
+        bucket: PackageShape,
+    };
+    MissingCrateLib => {
+        id: "missing-crate-lib",
+        bucket: PackageShape,
+    };
+    MissingFacadePrelude => {
+        id: "missing-facade-prelude",
+        bucket: PackageShape,
+    };
+
+    InvalidCategorySlug => {
+        id: "invalid-category-slug",
+        bucket: CategoryMetadata,
+    };
+    TooManyCategories => {
+        id: "too-many-categories",
+        bucket: CategoryMetadata,
+    };
+    DuplicateCategory => {
+        id: "duplicate-category",
+        bucket: CategoryMetadata,
+    };
+    InvalidCategoriesShape => {
+        id: "invalid-categories-shape",
+        bucket: CategoryMetadata,
+    };
+    InvalidCategoryValue => {
+        id: "invalid-category-value",
+        bucket: CategoryMetadata,
+    };
+    MissingWorkspaceCategories => {
+        id: "missing-workspace-categories",
+        bucket: CategoryMetadata,
+    };
+    MissingPackageCategories => {
+        id: "missing-package-categories",
+        bucket: CategoryMetadata,
+    };
+    MissingInheritedCategories => {
+        id: "missing-inherited-categories",
+        bucket: CategoryMetadata,
+    };
+
+    NestedFacadePackage => {
+        id: "nested-facade-package",
+        bucket: RepositoryShape,
+    };
+    MissingGitRepository => {
+        id: "missing-git-repository",
+        bucket: RepositoryShape,
+    };
+    MissingRootManifest => {
+        id: "missing-root-manifest",
+        bucket: RepositoryShape,
+    };
+    MissingCratesDirectory => {
+        id: "missing-crates-directory",
+        bucket: RepositoryShape,
+    };
+    MissingChildCrates => {
+        id: "missing-child-crates",
+        bucket: RepositoryShape,
+    };
+    MissingRequiredFile => {
+        id: "missing-required-file",
+        bucket: RepositoryShape,
+    };
+    MissingRequiredDirectory => {
+        id: "missing-required-directory",
+        bucket: RepositoryShape,
+    };
+    NonStandardPath => {
+        id: "non-standard-path",
+        bucket: RepositoryShape,
+    };
+
+    MissingToolingSurface => {
+        id: "missing-tooling-surface",
+        bucket: ToolingSurface,
+    };
+    MissingGithubCiCdSurface => {
+        id: "missing-github-ci-cd-surface",
+        bucket: ToolingSurface,
+    };
+
+    MissingReleaseSurface => {
+        id: "missing-release-surface",
+        bucket: ReleaseSurface,
+    };
+    MissingReleaseCiSurface => {
+        id: "missing-release-ci-surface",
+        bucket: ReleaseSurface,
+    };
+
+    MissingWorkspaceManifest => {
+    id: "missing-workspace-manifest",
+    bucket: WorkspaceShape,
+};
+
+ReadManifest => {
+    id: "read-manifest",
+    bucket: PackageShape,
+};
+ParseManifest => {
+    id: "parse-manifest",
+    bucket: PackageShape,
+};
+InvalidManifest => {
+    id: "invalid-manifest",
+    bucket: PackageShape,
+};
+
+MissingPackage => {
+    id: "missing-package",
+    bucket: PackageShape,
+};
+MissingPackageField => {
+    id: "missing-package-field",
+    bucket: PackageShape,
+};
+InvalidPackageName => {
+    id: "invalid-package-name",
+    bucket: PackageShape,
+};
+InvalidPackageVersion => {
+    id: "invalid-package-version",
+    bucket: PackageShape,
+};
+InvalidPackagePublish => {
+    id: "invalid-package-publish",
+    bucket: PackageShape,
+};
+MissingPackagePublish => {
+    id: "missing-package-publish",
+    bucket: PackageShape,
+};
+MissingPackageInheritedField => {
+    id: "missing-package-inherited-field",
+    bucket: PackageShape,
+};
+PackageFieldNotInherited => {
+    id: "package-field-not-inherited",
+    bucket: PackageShape,
+};
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::ALL_FACADE_ISSUE_CODES;
+
+    #[test]
+    fn facade_issue_code_ids_are_unique() {
+        let mut ids = BTreeSet::new();
+
+        for code in ALL_FACADE_ISSUE_CODES {
+            assert!(
+                ids.insert(code.as_str()),
+                "duplicate facade issue code: {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn facade_issue_code_ids_use_kebab_case() {
+        for code in ALL_FACADE_ISSUE_CODES {
+            let id = code.as_str();
+
+            assert!(!id.is_empty(), "facade issue code cannot be empty");
+
+            assert!(
+                !id.starts_with('-') && !id.ends_with('-'),
+                "facade issue code has an outer hyphen: {id}"
+            );
+
+            assert!(
+                !id.contains("--"),
+                "facade issue code has consecutive hyphens: {id}"
+            );
+
+            assert!(
+                id.bytes().all(|byte| {
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+                }),
+                "facade issue code is not lowercase kebab-case: {id}"
+            );
+        }
+    }
+}

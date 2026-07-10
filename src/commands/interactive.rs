@@ -13,7 +13,6 @@ use crate::output::Output;
 
 use super::NamedCommandArgs;
 use super::add::{self, AddArgs, AddMode};
-use super::copy::{self, CopyArgs};
 use super::doctor::{self, DoctorArgs};
 use super::ferris::{self, FerrisArgs};
 use super::info::{self, InfoArgs};
@@ -44,7 +43,6 @@ pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()
         "Search RustUse crates",
         "Show crate or primitive info",
         "Add a RustUse crate",
-        "Copy RustUse source",
         "Scan a RustUse repository",
         "Generate a report",
         "Initialize RustUse tracking",
@@ -85,33 +83,22 @@ pub(crate) fn run(output: Output, non_interactive: bool, yes: bool) -> Result<()
             },
             output,
         ),
-        3 => copy::run(
-            CopyArgs {
-                name: NamedCommandArgs {
-                    name: prompt_text("Crate or primitive name")?,
-                },
-                to: prompt_path("Destination directory", ".")?,
-                force: false,
-            },
-            output,
-        ),
-        4 => init::run(
+        3 => init::run(
             InitArgs {
                 path: prompt_path("Directory to initialize", ".")?,
-                copy_first: false,
                 cargo_first: false,
                 dry_run: true,
                 force: false,
             },
             output,
         ),
-        5 => doctor::run(
+        4 => doctor::run(
             DoctorArgs {
                 path: prompt_path("Directory to inspect", ".")?,
             },
             output,
         ),
-        6 => ferris::run(FerrisArgs {}, output),
+        5 => ferris::run(FerrisArgs {}, output),
         _ => Ok(()),
     }
 }

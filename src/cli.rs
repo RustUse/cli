@@ -9,8 +9,8 @@ RustUse command-line adoption and maintenance helper.
 
 rustuse helps find, inspect, adopt, validate, and maintain RustUse crates.
 
-rustuse.toml is optional: Cargo-only and copy-only workflows do not require
-project state. Use `rustuse init` to opt into managed tracking.
+rustuse.toml is optional for Cargo adoption. Use `rustuse init` to opt into
+managed tracking.
 
 Use `rustuse dev inspect` and `rustuse dev report` for maintainer workflows.
 Use `rustuse ci check` as the stable automation entrypoint for CI systems.

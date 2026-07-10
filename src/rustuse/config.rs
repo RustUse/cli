@@ -5,6 +5,20 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG_VERSION: u32 = 1;
 pub const DEFAULT_LICENSE: &str = "MIT OR Apache-2.0";
+pub(crate) const GITHUB_ORGANIZATION_URL: &str = "https://github.com/RustUse";
+pub(crate) const DOCUMENTATION_ORIGIN: &str = "https://rustuse.org";
+
+pub(crate) fn facade_repository_url(facade_name: &str) -> String {
+    format!("{GITHUB_ORGANIZATION_URL}/{facade_name}")
+}
+
+pub(crate) fn facade_documentation_url(facade_name: &str) -> String {
+    format!("{DOCUMENTATION_ORIGIN}/{facade_name}")
+}
+
+pub(crate) fn crate_documentation_url(facade_name: &str, crate_name: &str) -> String {
+    format!("{DOCUMENTATION_ORIGIN}/{facade_name}/{crate_name}")
+}
 
 impl fmt::Display for ProjectKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -43,17 +57,6 @@ impl RustUseConfig {
             primitives: Vec::new(),
         }
     }
-
-    #[must_use]
-    pub fn copy_first(project_name: String) -> Self {
-        Self {
-            version: CONFIG_VERSION,
-            project: ProjectConfig::copy_first(project_name),
-            facade: None,
-            tracking: TrackingConfig::default(),
-            primitives: Vec::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -75,18 +78,6 @@ impl ProjectConfig {
             default_adoption: AdoptionMode::Cargo,
             copy_root: String::from("src"),
             test_root: String::from("tests"),
-            license: String::from(DEFAULT_LICENSE),
-        }
-    }
-
-    #[must_use]
-    pub fn copy_first(name: String) -> Self {
-        Self {
-            name,
-            kind: ProjectKind::Project,
-            default_adoption: AdoptionMode::Copy,
-            copy_root: String::from("src/rustuse"),
-            test_root: String::from("tests/rustuse"),
             license: String::from(DEFAULT_LICENSE),
         }
     }

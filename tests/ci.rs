@@ -47,3 +47,29 @@ fn ci_check_deny_warnings_fails_on_incomplete_facade() {
         "stderr missing denial context:\n{stderr}"
     );
 }
+
+#[test]
+fn ci_check_deny_warnings_fails_on_nested_facade_package() {
+    let bin = CliBinary::rustuse();
+    let project = TempProject::facade("quant");
+    project.write(
+        "crates/use-quant/Cargo.toml",
+        "[package]\nname = \"use-quant\"\nversion = \"0.1.0\"\n",
+    );
+
+    let output = run_raw_in(
+        &bin,
+        project.path(),
+        &["ci", "check", "--deny-warnings", "."],
+    );
+
+    assert!(
+        !output.status.success(),
+        "nested facade warning should fail with --deny-warnings"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("nested-facade-package"),
+        "ci output should include the stable issue code:\n{stdout}"
+    );
+}

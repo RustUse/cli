@@ -3,7 +3,6 @@ use core::fmt;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DistributionMode {
     Cargo,
-    Copy,
     Cli,
 }
 
@@ -12,7 +11,6 @@ impl DistributionMode {
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::Cargo => "cargo",
-            Self::Copy => "copy",
             Self::Cli => "cli",
         }
     }

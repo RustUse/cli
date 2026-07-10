@@ -11,8 +11,7 @@ The `rustuse` CLI is not a package manager and does not replace Cargo. It is a w
 RustUse supports three adoption modes:
 
 - **Cargo mode** adds a RustUse crate as a normal Rust dependency. RustUse owns the crate; your project depends on it through Cargo.
-- **Copy mode** copies RustUse source into your project. Your project owns the copied source after adoption.
-- **CLI-assisted adoption** helps find, add, copy, track, inspect, and validate RustUse primitives.
+- **CLI-assisted adoption** helps find, add, track, inspect, and validate RustUse primitives.
 
 External projects can use RustUse through Cargo without any RustUse-specific configuration.
 
@@ -56,14 +55,19 @@ cargo rustuse add use-geometry
 rustuse init
 rustuse search <query>
 rustuse info <crate-or-facade>
-rustuse list
+rustuse list [path]
 
 rustuse add <crate>
-rustuse copy <crate>
-rustuse copy <crate> --with-tests
+rustuse add <crate> --dry-run
 
-rustuse docs <crate-or-facade>
-rustuse doctor
+rustuse docs [crate-or-facade] [--api|--workspace]
+rustuse doctor [path]
+
+rustuse catalog discover [path]
+rustuse catalog generate [path] [--output <path>]
+rustuse catalog check [path]
+rustuse catalog info <name>
+rustuse catalog search <query> [--limit <count>]
 
 rustuse dev inspect [path]
 rustuse dev report [path]
@@ -114,7 +118,6 @@ kind = "facade"
 facade = "use-geometry"
 homepage = "https://rustuse.org/use-geometry"
 default_adoption = "cargo"
-copy_supported = true
 ```
 
 For an individual package:
@@ -125,7 +128,6 @@ kind = "primitive"
 facade = "use-geometry"
 slug = "use-point"
 homepage = "https://rustuse.org/use-geometry/use-point"
-copy_supported = true
 ```
 
 Cargo metadata is best for information that belongs to the crate or workspace itself:
@@ -135,7 +137,6 @@ Cargo metadata is best for information that belongs to the crate or workspace it
 - RustUse homepage
 - documentation path
 - adoption support
-- copy-mode support
 - category or domain hints
 - generated catalog hints
 
@@ -145,7 +146,7 @@ RustUse should avoid duplicating normal Cargo fields such as `name`, `version`, 
 
 `rustuse.toml` is optional, human-editable project configuration.
 
-Cargo-only and copy-only workflows do not require `rustuse.toml`. Run `rustuse init` when you want managed RustUse project state.
+Cargo adoption does not require `rustuse.toml`. Run `rustuse init` when you want managed RustUse project state.
 
 ```bash
 rustuse init
@@ -192,12 +193,6 @@ manifest_checks = true
 facade_wiring_checks = true
 ```
 
-Use copy-first mode when you want copied source to be the default adoption strategy:
-
-```bash
-rustuse init --copy-first
-```
-
 Preview generated files and directories without writing them:
 
 ```bash
@@ -239,27 +234,12 @@ rustuse info use-point
 
 ### `add`
 
-Adds a RustUse crate through Cargo mode.
+Adds a RustUse crate through Cargo mode by invoking `cargo add`. Use
+`--dry-run` to validate the catalog entry without changing the manifest.
 
 ```bash
 rustuse add use-geometry
 rustuse add use-point
-```
-
-Copy adoption can be requested through `add` when supported:
-
-```bash
-rustuse add use-point --copy
-rustuse add use-point --copy --with-tests
-```
-
-### `copy`
-
-Copies RustUse source into the current project when copy mode is supported.
-
-```bash
-rustuse copy use-point
-rustuse copy use-point --with-tests
 ```
 
 ### `list`
@@ -295,7 +275,7 @@ The `dev report` command generates human-readable maintainer reports.
 rustuse dev report [path]
 ```
 
-Use `--fleet` for a RustUse development root that contains multiple facade repositories:
+Use `--fleet` for a RustUse development directory that contains multiple facade repositories:
 
 ```bash
 rustuse dev report . --fleet
@@ -333,11 +313,11 @@ A facade report includes:
 - generated and local artifacts
 - recommended action plan
 
-### Root report
+### Fleet report
 
-A root report is intended to run against a RustUse development root containing multiple repositories.
+A fleet report is intended to run against a RustUse development directory containing multiple repositories.
 
-Example development root:
+Example development directory:
 
 ```text
 git_local/
@@ -354,7 +334,7 @@ git_local/
   use-*
 ```
 
-Generate a root report:
+Generate a fleet report:
 
 ```bash
 cd git_local
@@ -367,12 +347,12 @@ The default fleet report file is:
 rustuse-fleet-report.md
 ```
 
-A root may not itself be a Git repository. The CLI treats the root as a development directory and inspects the repositories inside it.
+A fleet directory may not itself be a Git repository. The CLI treats it as a development directory and inspects the repositories inside it.
 
-A root report includes:
+A fleet report includes:
 
-- development root discovery
-- root repository discovery
+- development directory discovery
+- repository discovery
 - `use-*` facade discovery
 - Git repository checks for child repositories
 - child crate counts
@@ -383,7 +363,7 @@ A root report includes:
 - standard file consistency summaries
 - recommended action plan
 
-The root report intentionally summarizes large issue sets. Full per-manifest dumps should be reserved for future verbose or focused report modes.
+The fleet report intentionally summarizes large issue sets. Full per-manifest dumps should be reserved for future verbose or focused report modes.
 
 ## Facade maintenance model
 
@@ -417,21 +397,7 @@ CI and release configuration
 
 If these surfaces disagree, the CLI should report the drift.
 
-When safe, the CLI should be able to regenerate or sync deterministic surfaces.
-
-## Maintainer command model
-
-The long-term RustUse maintainer model is:
-
-```text
-inspect = read
-check   = validate
-report  = explain
-sync    = maintain
-push    = Git remotes
-publish = crates.io
-release = full orchestration
-```
+The current CLI reports drift without mutating facade surfaces.
 
 Current public maintainer-oriented commands are intentionally conservative:
 
@@ -440,96 +406,6 @@ rustuse dev inspect .
 rustuse dev report .
 rustuse dev report . --fleet
 rustuse ci check .
-```
-
-Future maintainer commands should grow around focused scopes instead of exposing internal utility modules directly.
-
-## Planned facade maintenance
-
-Facade commands operate on a single `use-*` facade repository.
-
-```bash
-rustuse dev inspect
-rustuse dev report
-rustuse ci check
-rustuse dev sync --dry-run
-rustuse dev sync --write
-```
-
-Planned facade checks include:
-
-- facade repository shape
-- child crate discovery
-- workspace member consistency
-- workspace dependency consistency
-- optional facade dependency consistency
-- feature-per-child consistency
-- `full` feature consistency
-- `src/lib.rs` re-export consistency
-- `src/prelude.rs` export consistency
-- README child table consistency
-- crates.io category validity
-- package metadata completeness
-- standard file consistency
-- release configuration
-
-Planned facade sync targets:
-
-```bash
-rustuse dev sync --only manifest --dry-run
-rustuse dev sync --only exports --dry-run
-rustuse dev sync --only readme --dry-run
-rustuse dev sync --only standards --dry-run
-rustuse dev sync --only workflows --dry-run
-```
-
-Write operations should require explicit write-oriented flags such as `--write`.
-
-## Planned root commands
-
-Root commands operate on a RustUse development root.
-
-```bash
-rustuse dev inspect .
-rustuse ci check .
-rustuse dev report . --fleet
-rustuse dev manifests .
-```
-
-Until a public `root` scope is promoted, use:
-
-```bash
-rustuse dev report . --fleet
-```
-
-Planned root release orchestration:
-
-```bash
-rustuse root publish . --dry-run
-rustuse root publish . --write
-rustuse root publish . --facade use-quant --write
-rustuse root publish . --facade use-quant --children-only --write
-rustuse root publish . --facade use-quant --facade-only --write
-
-rustuse root push . --dry-run
-rustuse root push . --write
-rustuse root push . --facade use-geometry --write
-
-rustuse root release . --dry-run
-rustuse root release . --write
-rustuse root release . --facade use-quant --write
-```
-
-Potential release flow:
-
-```text
-report
-check
-sync
-test
-push
-publish
-report
 ```
 
 ## Continuous Integration
@@ -555,16 +431,6 @@ The CI command should be:
 - machine-friendly
 - non-writing unless explicitly designed otherwise
 
-Future maintainer CI commands may include:
-
-```bash
-rustuse ci inspect <path>
-rustuse ci check <path>
-rustuse ci report <path>
-rustuse ci sync <path> --dry-run
-rustuse ci sync <path> --write
-```
-
 ## Generated artifacts
 
 RustUse may generate local development artifacts during inspection, reporting, and managed adoption workflows.
@@ -576,12 +442,6 @@ rustuse-report.md
 rustuse-fleet-report.md
 .rustuse/cache/
 .rustuse/snapshots/
-```
-
-Future generated artifacts may include:
-
-```text
-rustuse.lock
 ```
 
 Generated artifacts should be deterministic where possible. Files that represent useful repository health snapshots may be committed when they are intentionally part of the repository maintenance workflow.

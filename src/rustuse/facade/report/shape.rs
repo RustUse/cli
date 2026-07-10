@@ -5,6 +5,15 @@ pub(crate) fn write_detected_facade_shape(markdown: &mut String, diagnostics: &F
     let facade = &diagnostics.facade;
 
     markdown.push_str("## Facade Shape\n\n");
+    markdown.push_str(&format!("- Structure status: **{}**\n", facade.status()));
+    markdown.push_str(&format!(
+        "- Root manifest: `{}`\n",
+        facade.root_manifest_display_path()
+    ));
+    markdown.push_str(&format!(
+        "- Child crates directory: `{}`\n\n",
+        facade.crates_dir_display_path()
+    ));
     markdown.push_str("| Check | Status |\n");
     markdown.push_str("|---|---:|\n");
     markdown.push_str(&format!("| `.git` | {} |\n", yes_no(facade.has_git())));

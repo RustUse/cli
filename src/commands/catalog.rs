@@ -1,11 +1,9 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 
 use crate::{output::Output, rustuse::catalog};
-
-use super::placeholder;
 
 #[derive(Debug, Args)]
 #[command(arg_required_else_help = true)]
@@ -70,32 +68,93 @@ pub struct CatalogSearchArgs {
 
 pub fn run(args: CatalogArgs, output: Output) -> Result<()> {
     match args.command {
-        CatalogCommand::Discover(args) => staged(
-            output,
-            "catalog discover",
-            format!("path={}", args.path.display()),
-        ),
-        CatalogCommand::Generate(args) => {
-            let catalog_output = args
-                .output
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| "<default>".to_owned());
-
-            staged(
-                output,
-                "catalog generate",
-                format!("path={}, output={}", args.path.display(), catalog_output),
-            )
-        },
-        CatalogCommand::Check(args) => staged(
-            output,
-            "catalog check",
-            format!("path={}", args.path.display()),
-        ),
+        CatalogCommand::Discover(args) => discover(args, output),
+        CatalogCommand::Generate(args) => generate(args, output),
+        CatalogCommand::Check(args) => check(args, output),
         CatalogCommand::Info(args) => run_info(args, output),
         CatalogCommand::Search(args) => run_search(args, output),
     }
+}
+
+fn discover(args: CatalogPathArgs, output: Output) -> Result<()> {
+    let mut entries = discover_entries(&args.path)?;
+    entries.sort();
+    if entries.is_empty() {
+        output.record(
+            "catalog discover",
+            "empty",
+            "No local use-* Cargo packages found.",
+        );
+    } else {
+        for entry in entries {
+            output.record("catalog discover", "entry", &entry);
+        }
+    }
+    Ok(())
+}
+
+fn generate(args: CatalogGenerateArgs, output: Output) -> Result<()> {
+    let mut entries = discover_entries(&args.path)?;
+    entries.sort();
+    let contents = entries
+        .iter()
+        .map(|entry| format!("- {entry}\n"))
+        .collect::<String>();
+    if let Some(path) = args.output {
+        fs::write(&path, &contents)
+            .with_context(|| format!("failed to write `{}`", path.display()))?;
+        output.record("catalog generate", "written", &path.display().to_string());
+    } else if output.is_json() {
+        output.record("catalog generate", "generated", &contents);
+    } else {
+        output.line(contents.trim_end());
+    }
+    Ok(())
+}
+
+fn check(args: CatalogPathArgs, output: Output) -> Result<()> {
+    let entries = discover_entries(&args.path)?;
+    let mut sorted = entries.clone();
+    sorted.sort();
+    if entries != sorted {
+        bail!("local catalog entries are not deterministic");
+    }
+    output.record(
+        "catalog check",
+        "ok",
+        &format!("checked {} local use-* Cargo package(s)", entries.len()),
+    );
+    Ok(())
+}
+
+fn discover_entries(path: &std::path::Path) -> Result<Vec<String>> {
+    let mut entries = Vec::new();
+    for entry in
+        fs::read_dir(path).with_context(|| format!("failed to read `{}`", path.display()))?
+    {
+        let entry = entry.with_context(|| format!("failed to inspect `{}`", path.display()))?;
+        let child = entry.path();
+        let manifest_path = child.join("Cargo.toml");
+        if !child.is_dir() || !manifest_path.is_file() {
+            continue;
+        }
+        let raw = fs::read_to_string(&manifest_path)
+            .with_context(|| format!("failed to read `{}`", manifest_path.display()))?;
+        let manifest: toml::Value = toml::from_str(&raw)
+            .with_context(|| format!("failed to parse `{}`", manifest_path.display()))?;
+        let Some(name) = manifest
+            .get("package")
+            .and_then(toml::Value::as_table)
+            .and_then(|package| package.get("name"))
+            .and_then(toml::Value::as_str)
+        else {
+            continue;
+        };
+        if name.starts_with("use-") {
+            entries.push(name.to_owned());
+        }
+    }
+    Ok(entries)
 }
 
 fn run_info(args: CatalogInfoArgs, output: Output) -> Result<()> {
@@ -121,7 +180,6 @@ fn run_info(args: CatalogInfoArgs, output: Output) -> Result<()> {
     output.line(format!("kind: {}", entry.kind));
     output.line(format!("set: {}", entry.set));
     output.line(format!("docs: {}", entry.docs_url));
-
     Ok(())
 }
 
@@ -166,9 +224,4 @@ fn run_search(args: CatalogSearchArgs, output: Output) -> Result<()> {
 
 fn plural_y(count: usize) -> &'static str {
     if count == 1 { "y" } else { "ies" }
-}
-
-fn staged(output: Output, command: &str, detail: String) -> Result<()> {
-    let staged_detail = format!("staged=true, {detail}");
-    placeholder(output, command, staged_detail)
 }

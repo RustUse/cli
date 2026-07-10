@@ -4,25 +4,20 @@ use anyhow::Result;
 
 use crate::rustuse::adapter::github::workflows::{GitHubWorkflowReport, inspect_github_workflows};
 use crate::rustuse::adapter::gitlab::{GitLabReport, inspect_gitlab};
-use crate::rustuse::facade::codes;
+use crate::rustuse::facade::codes::FacadeIssueCode;
 use crate::rustuse::facade::discover::{FacadeInfo, discover_facade};
 use crate::rustuse::facade::inspect::{FacadeRepositoryReport, inspect_facade_repository};
 use crate::rustuse::facade::issue::{FacadeFixKind, FacadeIssue, FacadeIssueSeverity};
 use crate::rustuse::facade::layout::MAKEFILE;
-use crate::rustuse::facade::manifest::{FacadeManifestReport, analyze_facade_repository_manifests};
+use crate::rustuse::facade::manifest::{
+    FacadeManifestReport, ManifestIssueSeverity, analyze_facade_repository_manifests,
+};
+use crate::rustuse::facade::model::{FacadeCrateInfo, FacadeCrateKind, FacadeStatus};
 use crate::rustuse::facade::non_standard::{
     NonStandardPathKind, NonStandardPathReport, NonStandardPathRule, inspect_non_standard_paths,
 };
 use crate::rustuse::facade::release::{ReleaseSurfaceReport, inspect_release_surface};
 use crate::rustuse::utils::tooling::{ToolingSurfaceReport, inspect_tooling_surface};
-
-const BUCKET_FACADE_SHAPE: &str = "Facade shape";
-const BUCKET_REPOSITORY_SURFACE: &str = "Repository surface";
-const BUCKET_DOCUMENTATION: &str = "Documentation";
-const BUCKET_CI_CD: &str = "CI/CD surface";
-const BUCKET_RELEASE: &str = "Release surface";
-const BUCKET_TOOLING: &str = "Tooling configuration";
-const BUCKET_NON_STANDARD_PATHS: &str = "Non-standard paths";
 
 const FACADE_NON_STANDARD_PATHS: &[NonStandardPathRule] = &[
     NonStandardPathRule {
@@ -52,12 +47,14 @@ pub(crate) struct FacadeDiagnostics {
 
 #[derive(Clone, Debug)]
 pub(crate) struct FacadeChildCrateRow {
-    pub(crate) kind: &'static str,
+    pub(crate) kind: FacadeCrateKind,
     pub(crate) crate_name: String,
     pub(crate) manifest_path: PathBuf,
     pub(crate) readme_present: bool,
     pub(crate) lib_present: bool,
     pub(crate) prelude_present: bool,
+    pub(crate) documentation_status: FacadeStatus,
+    pub(crate) documentation_notes: String,
     pub(crate) manifest_status: &'static str,
     pub(crate) manifest_issue_count: usize,
 }
@@ -92,13 +89,16 @@ impl FacadeDiagnostics {
     }
 
     pub(crate) fn status(&self) -> &'static str {
-        if self.error_count() > 0 {
-            "error"
-        } else if self.warning_count() > 0 {
-            "warning"
-        } else {
-            "ok"
-        }
+        self.facade_status().as_str()
+    }
+
+    pub(crate) fn facade_status(&self) -> FacadeStatus {
+        self.facade
+            .facade_status()
+            .combine(FacadeStatus::from_error_warning_counts(
+                self.error_count(),
+                self.warning_count(),
+            ))
     }
 
     pub(crate) fn issue_count(&self) -> usize {
@@ -135,17 +135,12 @@ impl FacadeDiagnostics {
             .crate_manifest_paths
             .iter()
             .map(|manifest_path| {
-                let crate_dir = manifest_path.parent().unwrap_or(&self.facade.root);
-                let crate_name = crate_name(crate_dir);
-                let kind = if crate_name == self.facade.name.as_str() {
-                    "facade"
-                } else {
-                    "child"
-                };
-                let relative_manifest_path = manifest_path
-                    .strip_prefix(&self.facade.root)
-                    .unwrap_or(manifest_path)
+                let crate_info = FacadeCrateInfo::from_manifest(&self.facade, manifest_path);
+                let relative_manifest_path = self
+                    .facade
+                    .relative_path(&crate_info.manifest_path)
                     .to_path_buf();
+
                 let manifest_report = self
                     .manifest
                     .manifests
@@ -153,12 +148,14 @@ impl FacadeDiagnostics {
                     .find(|manifest| manifest.path == relative_manifest_path);
 
                 FacadeChildCrateRow {
-                    kind,
-                    crate_name,
+                    kind: crate_info.kind,
+                    crate_name: crate_info.name.clone(),
                     manifest_path: relative_manifest_path,
-                    readme_present: crate_dir.join("README.md").is_file(),
-                    lib_present: crate_dir.join("src/lib.rs").is_file(),
-                    prelude_present: crate_dir.join("src/prelude.rs").is_file(),
+                    readme_present: crate_info.readme_present(),
+                    lib_present: crate_info.lib_present(),
+                    prelude_present: crate_info.prelude_present(),
+                    documentation_status: crate_info.documentation_status(),
+                    documentation_notes: crate_info.documentation_notes(),
                     manifest_status: manifest_report
                         .map(|manifest| manifest.status())
                         .unwrap_or("unknown"),
@@ -184,8 +181,7 @@ impl FacadeDiagnostics {
     fn collect_facade_shape_issues(&mut self) {
         if !self.facade.has_git() {
             self.push_warning(
-                codes::MISSING_GIT_REPOSITORY,
-                BUCKET_FACADE_SHAPE,
+                FacadeIssueCode::MissingGitRepository,
                 Some(self.facade.root.join(".git")),
                 "Initialize or restore the facade `.git` repository.",
                 None,
@@ -194,8 +190,7 @@ impl FacadeDiagnostics {
 
         if !self.facade.has_manifest() {
             self.push_error(
-                codes::MISSING_ROOT_MANIFEST,
-                BUCKET_FACADE_SHAPE,
+                FacadeIssueCode::MissingRootManifest,
                 Some(self.facade.root.join("Cargo.toml")),
                 "Add the facade root `Cargo.toml`.",
                 None,
@@ -204,18 +199,16 @@ impl FacadeDiagnostics {
 
         if !self.facade.has_crates_dir() {
             self.push_warning(
-                codes::MISSING_CRATES_DIRECTORY,
-                BUCKET_FACADE_SHAPE,
+                FacadeIssueCode::MissingCratesDirectory,
                 Some(self.facade.root.join("crates")),
                 "Add the facade `crates/` directory.",
                 Some(FacadeFixKind::RestoreStandardDirectory),
             );
         }
 
-        if self.facade.has_crates_dir() && self.facade.crate_count() == 0 {
+        if self.facade.has_crates_dir() && !self.facade.has_child_crates() {
             self.push_warning(
-                codes::MISSING_CHILD_CRATES,
-                BUCKET_FACADE_SHAPE,
+                FacadeIssueCode::MissingChildCrates,
                 Some(self.facade.root.join("crates")),
                 "Add child crates under `crates/`, each with its own `Cargo.toml`.",
                 None,
@@ -241,8 +234,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing_files {
             self.push_warning(
-                codes::MISSING_REQUIRED_FILE,
-                BUCKET_REPOSITORY_SURFACE,
+                FacadeIssueCode::MissingRequiredFile,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreStandardFile),
@@ -266,8 +258,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing_directories {
             self.push_warning(
-                codes::MISSING_REQUIRED_DIRECTORY,
-                BUCKET_REPOSITORY_SURFACE,
+                FacadeIssueCode::MissingRequiredDirectory,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreStandardDirectory),
@@ -282,19 +273,12 @@ impl FacadeDiagnostics {
             .iter()
             .flat_map(|manifest| {
                 manifest.issues.iter().map(|issue| {
-                    let fix = match issue.code {
-                        codes::MISSING_LINTS_WORKSPACE => Some(FacadeFixKind::AddWorkspaceLints),
-                        codes::MISSING_FACADE_CHILD_DEPENDENCY_OPTIONAL => None,
-                        codes::MISSING_FACADE_CHILD_FEATURE => None,
-                        codes::MISSING_FULL_FEATURE_MEMBER => None,
-                        _ => None,
-                    };
+                    let fix = manifest_issue_fix(issue.code);
 
                     (
                         manifest.path.clone(),
-                        severity_from_manifest(issue.severity.as_str()),
+                        facade_severity(issue.severity),
                         issue.code,
-                        codes::manifest_shape_bucket(issue.code),
                         issue.message.clone(),
                         fix,
                     )
@@ -302,15 +286,10 @@ impl FacadeDiagnostics {
             })
             .collect::<Vec<_>>();
 
-        for (path, severity, code, bucket, message, fix) in manifest_issues {
-            self.push_issue(FacadeIssue {
-                severity,
-                code,
-                bucket,
-                path: Some(path),
-                message,
-                fix,
-            });
+        for (path, severity, code, message, fix) in manifest_issues {
+            let issue = FacadeIssue::new(severity, code, Some(path), message);
+
+            self.push_issue_with_fix(issue, fix);
         }
     }
 
@@ -320,34 +299,32 @@ impl FacadeDiagnostics {
             .crate_manifest_paths
             .iter()
             .flat_map(|manifest_path| {
-                let crate_dir = manifest_path.parent().unwrap_or(&self.facade.root);
-                let crate_name = crate_name(crate_dir);
-                let is_facade_package = crate_name == self.facade.name;
+                let crate_info = FacadeCrateInfo::from_manifest(&self.facade, manifest_path);
 
                 let mut issues = Vec::new();
 
-                if !crate_dir.join("README.md").is_file() {
+                if !crate_info.readme_present() {
                     issues.push((
-                        codes::MISSING_PACKAGE_README_FILE,
-                        crate_dir.join("README.md"),
-                        format!("Add `README.md` for crate `{crate_name}`."),
+                        FacadeIssueCode::MissingPackageReadmeFile,
+                        crate_info.readme_path.clone(),
+                        format!("Add `README.md` for crate `{}`.", crate_info.name),
                         Some(FacadeFixKind::RestoreStandardFile),
                     ));
                 }
 
-                if !crate_dir.join("src/lib.rs").is_file() {
+                if !crate_info.lib_present() {
                     issues.push((
-                        codes::MISSING_CRATE_LIB,
-                        crate_dir.join("src/lib.rs"),
-                        format!("Add `src/lib.rs` for crate `{crate_name}`."),
+                        FacadeIssueCode::MissingCrateLib,
+                        crate_info.lib_path.clone(),
+                        format!("Add `src/lib.rs` for crate `{}`.", crate_info.name),
                         Some(FacadeFixKind::RestoreStandardFile),
                     ));
                 }
 
-                if is_facade_package && !crate_dir.join("src/prelude.rs").is_file() {
+                if crate_info.requires_prelude() && !crate_info.prelude_present() {
                     issues.push((
-                        codes::MISSING_FACADE_PRELUDE,
-                        crate_dir.join("src/prelude.rs"),
+                        FacadeIssueCode::MissingFacadePrelude,
+                        crate_info.prelude_path,
                         "Add facade `src/prelude.rs`.".to_owned(),
                         Some(FacadeFixKind::RestoreStandardFile),
                     ));
@@ -358,7 +335,7 @@ impl FacadeDiagnostics {
             .collect::<Vec<_>>();
 
         for (code, path, message, fix) in documentation_issues {
-            self.push_warning(code, BUCKET_DOCUMENTATION, Some(path), message, fix);
+            self.push_warning(code, Some(path), message, fix);
         }
     }
 
@@ -378,8 +355,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing {
             self.push_warning(
-                codes::MISSING_TOOLING_SURFACE,
-                BUCKET_TOOLING,
+                FacadeIssueCode::MissingToolingSurface,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreStandardFile),
@@ -402,8 +378,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing_github_paths {
             self.push_warning(
-                codes::MISSING_GITHUB_CI_CD_SURFACE,
-                BUCKET_CI_CD,
+                FacadeIssueCode::MissingGithubCiCdSurface,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreGithubWorkflow),
@@ -427,8 +402,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing_release_surface {
             self.push_warning(
-                codes::MISSING_RELEASE_SURFACE,
-                BUCKET_RELEASE,
+                FacadeIssueCode::MissingReleaseSurface,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreStandardFile),
@@ -453,8 +427,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in missing_release_ci_surface {
             self.push_warning(
-                codes::MISSING_RELEASE_CI_SURFACE,
-                BUCKET_RELEASE,
+                FacadeIssueCode::MissingReleaseCiSurface,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RestoreGithubWorkflow),
@@ -477,8 +450,7 @@ impl FacadeDiagnostics {
 
         for (path, message) in present_non_standard_paths {
             self.push_warning(
-                codes::NON_STANDARD_PATH,
-                BUCKET_NON_STANDARD_PATHS,
+                FacadeIssueCode::NonStandardPath,
                 Some(path),
                 message,
                 Some(FacadeFixKind::RemoveNonStandardPath),
@@ -488,38 +460,33 @@ impl FacadeDiagnostics {
 
     fn push_error(
         &mut self,
-        code: &'static str,
-        bucket: &'static str,
+        code: FacadeIssueCode,
         path: Option<PathBuf>,
         message: impl Into<String>,
         fix: Option<FacadeFixKind>,
     ) {
-        self.push_issue(FacadeIssue {
-            severity: FacadeIssueSeverity::Error,
-            code,
-            bucket,
-            path,
-            message: message.into(),
-            fix,
-        });
+        let issue = FacadeIssue::error(code, path, message);
+        self.push_issue_with_fix(issue, fix);
     }
 
     fn push_warning(
         &mut self,
-        code: &'static str,
-        bucket: &'static str,
+        code: FacadeIssueCode,
         path: Option<PathBuf>,
         message: impl Into<String>,
         fix: Option<FacadeFixKind>,
     ) {
-        self.push_issue(FacadeIssue {
-            severity: FacadeIssueSeverity::Warning,
-            code,
-            bucket,
-            path,
-            message: message.into(),
-            fix,
-        });
+        let issue = FacadeIssue::warning(code, path, message);
+        self.push_issue_with_fix(issue, fix);
+    }
+
+    fn push_issue_with_fix(&mut self, issue: FacadeIssue, fix: Option<FacadeFixKind>) {
+        let issue = match fix {
+            Some(fix) => issue.with_fix(fix),
+            None => issue,
+        };
+
+        self.push_issue(issue);
     }
 
     fn push_issue(&mut self, issue: FacadeIssue) {
@@ -527,18 +494,16 @@ impl FacadeDiagnostics {
     }
 }
 
-fn severity_from_manifest(value: &str) -> FacadeIssueSeverity {
-    if value == "error" {
-        FacadeIssueSeverity::Error
-    } else {
-        FacadeIssueSeverity::Warning
+const fn facade_severity(severity: ManifestIssueSeverity) -> FacadeIssueSeverity {
+    match severity {
+        ManifestIssueSeverity::Error => FacadeIssueSeverity::Error,
+        ManifestIssueSeverity::Warning => FacadeIssueSeverity::Warning,
     }
 }
 
-fn crate_name(crate_dir: &Path) -> String {
-    crate_dir
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("<unknown>")
-        .to_owned()
+const fn manifest_issue_fix(code: FacadeIssueCode) -> Option<FacadeFixKind> {
+    match code {
+        FacadeIssueCode::MissingLintsWorkspace => Some(FacadeFixKind::AddWorkspaceLints),
+        _ => None,
+    }
 }

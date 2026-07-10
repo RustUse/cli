@@ -72,7 +72,7 @@ impl FacadeInfo {
     }
 
     pub(crate) fn has_git(&self) -> bool {
-        self.git_dir.exists()
+        self.git_dir.is_dir()
     }
 
     pub(crate) fn has_manifest(&self) -> bool {
@@ -126,7 +126,6 @@ impl FacadeInfo {
 pub(crate) struct FacadeCrateInfo {
     pub(crate) kind: FacadeCrateKind,
     pub(crate) name: String,
-    pub(crate) root: PathBuf,
     pub(crate) manifest_path: PathBuf,
     pub(crate) readme_path: PathBuf,
     pub(crate) lib_path: PathBuf,
@@ -156,7 +155,6 @@ impl FacadeCrateInfo {
             lib_path: root.join("src/lib.rs"),
             prelude_path: root.join("src/prelude.rs"),
             manifest_path: manifest_path.to_path_buf(),
-            root,
         }
     }
 

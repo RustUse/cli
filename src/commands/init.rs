@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Args;
 
 use crate::output::Output;
@@ -14,10 +14,6 @@ pub struct InitArgs {
     /// Directory to initialize.
     #[arg(default_value = ".", value_name = "PATH")]
     pub path: PathBuf,
-
-    /// Prefer copy-mode defaults in rustuse.toml.
-    #[arg(long)]
-    pub copy_first: bool,
 
     /// Prefer Cargo-mode defaults in rustuse.toml.
     #[arg(long)]
@@ -33,16 +29,12 @@ pub struct InitArgs {
 }
 
 pub fn run(args: InitArgs, output: Output) -> Result<()> {
-    if args.copy_first && args.cargo_first {
-        bail!("--copy-first and --cargo-first cannot be used together");
-    }
-
     let root = std::fs::canonicalize(&args.path)
         .with_context(|| format!("failed to resolve `{}`", args.path.display()))?;
 
     let state = project::detect(&root);
     let project_name = project_name(&root);
-    let config = config_for(&args, project_name);
+    let config = config_for(project_name);
 
     if state.has_config && !args.force {
         let message = format!(
@@ -76,12 +68,8 @@ pub fn run(args: InitArgs, output: Output) -> Result<()> {
     Ok(())
 }
 
-fn config_for(args: &InitArgs, project_name: String) -> RustUseConfig {
-    if args.copy_first {
-        RustUseConfig::copy_first(project_name)
-    } else {
-        RustUseConfig::cargo_first(project_name)
-    }
+fn config_for(project_name: String) -> RustUseConfig {
+    RustUseConfig::cargo_first(project_name)
 }
 
 fn project_name(root: &Path) -> String {
@@ -166,6 +154,4 @@ fn print_plan(
     output.line("Next:");
     output.line("  rustuse search geometry");
     output.line("  rustuse add use-geometry");
-    output.line("  rustuse copy use-slug");
-    output.line("  rustuse add use-slug --copy");
 }

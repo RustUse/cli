@@ -6,7 +6,6 @@ use crate::{cli::Cli, output::Output};
 pub mod add;
 pub mod catalog;
 pub mod ci;
-pub mod copy;
 pub mod dev;
 pub mod docs;
 pub mod doctor;
@@ -19,7 +18,7 @@ pub mod search;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Plan adding a Cargo dependency or copy-mode primitive.
+    /// Add a RustUse Cargo dependency.
     Add(add::AddArgs),
 
     /// Manage RustUse catalog generation and validation.
@@ -27,9 +26,6 @@ pub enum Commands {
 
     /// Run automation-safe RustUse validation.
     Ci(ci::CiArgs),
-
-    /// Plan copying RustUse source without requiring RustUse project state.
-    Copy(copy::CopyArgs),
 
     /// Run RustUse maintainer and repository development tools.
     Dev(dev::DevArgs),
@@ -78,7 +74,6 @@ fn run_command(command: Commands, output: Output, non_interactive: bool, yes: bo
         Commands::Add(args) => add::run(args, output),
         Commands::Catalog(args) => catalog::run(args, output),
         Commands::Ci(args) => ci::run(args, output),
-        Commands::Copy(args) => copy::run(args, output),
         Commands::Dev(args) => dev::run(args, output, non_interactive, yes),
         Commands::Docs(args) => docs::run(args, output),
         Commands::Doctor(args) => doctor::run(args, output),
@@ -88,19 +83,4 @@ fn run_command(command: Commands, output: Output, non_interactive: bool, yes: bo
         Commands::List(args) => list::run(args, output),
         Commands::Search(args) => search::run(args, output),
     }
-}
-
-pub(crate) fn placeholder(output: Output, command: &str, detail: impl AsRef<str>) -> Result<()> {
-    let detail = detail.as_ref();
-
-    if output.is_json() {
-        output.record(command, "placeholder", detail);
-    } else {
-        output.line(format!("rustuse {command}: placeholder"));
-        if !detail.is_empty() {
-            output.line(format!("detail: {detail}"));
-        }
-    }
-
-    Ok(())
 }

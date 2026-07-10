@@ -105,9 +105,7 @@ pub fn run(args: DoctorArgs, output: Output) -> Result<()> {
     ));
 
     output.line("");
-    output.line(
-        "CLI mode: rustuse helps apply Cargo or copy boundaries; it is not a package manager.",
-    );
+    output.line("CLI mode: rustuse helps apply Cargo boundaries; it is not a package manager.");
 
     Ok(())
 }

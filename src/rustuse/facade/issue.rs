@@ -1,6 +1,9 @@
+use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+use super::codes::{FacadeIssueBucket, FacadeIssueCode};
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum FacadeIssueSeverity {
     Error,
     Warning,
@@ -22,17 +25,65 @@ impl FacadeIssueSeverity {
     }
 }
 
-#[derive(Clone, Debug)]
+impl fmt::Display for FacadeIssueSeverity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FacadeIssue {
     pub(crate) severity: FacadeIssueSeverity,
-    pub(crate) code: &'static str,
-    pub(crate) bucket: &'static str,
+    pub(crate) code: FacadeIssueCode,
     pub(crate) path: Option<PathBuf>,
     pub(crate) message: String,
     pub(crate) fix: Option<FacadeFixKind>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+impl FacadeIssue {
+    pub(crate) fn new(
+        severity: FacadeIssueSeverity,
+        code: FacadeIssueCode,
+        path: Option<PathBuf>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            severity,
+            code,
+            path,
+            message: message.into(),
+            fix: None,
+        }
+    }
+
+    pub(crate) fn error(
+        code: FacadeIssueCode,
+        path: Option<PathBuf>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(FacadeIssueSeverity::Error, code, path, message)
+    }
+
+    pub(crate) fn warning(
+        code: FacadeIssueCode,
+        path: Option<PathBuf>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(FacadeIssueSeverity::Warning, code, path, message)
+    }
+
+    pub(crate) const fn bucket(&self) -> FacadeIssueBucket {
+        self.code.bucket()
+    }
+
+    #[must_use]
+    pub(crate) fn with_fix(mut self, fix: FacadeFixKind) -> Self {
+        self.fix = Some(fix);
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum FacadeFixKind {
     AddWorkspaceLints,
     RestoreStandardFile,
