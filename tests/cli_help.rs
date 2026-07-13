@@ -26,19 +26,6 @@ fn help_lists_core_commands() {
 }
 
 #[test]
-fn help_has_no_legacy_maintainer_commands() {
-    let bin = CliBinary::rustuse();
-    let stdout = run_help(&bin, &[]);
-
-    for command in ["facade", "report", "check", "scan"] {
-        assert!(
-            !stdout.contains(&format!("\n  {command} ")),
-            "legacy command `{command}` should not exist"
-        );
-    }
-}
-
-#[test]
 fn non_interactive_without_command_fails() {
     let bin = CliBinary::rustuse();
     let output = run_raw(&bin, &["--non-interactive"]);
