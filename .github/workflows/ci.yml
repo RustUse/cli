@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: Validate ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-24.04
+            os: ubuntu-24.04
+
+          - name: windows-2025
+            os: windows-2025
+
+          - name: macos-15-arm64
+            os: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Cargo metadata
+        run: cargo metadata --locked --format-version 1 --no-deps
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --all-targets --all-features --locked
+
+      - name: Build
+        run: cargo build --workspace --all-targets --all-features --release --locked
+
+  required:
+    name: CI Required
+    runs-on: ubuntu-24.04
+    needs:
+      - validate
+    if: always()
+
+    steps:
+      - name: Check required jobs
+        shell: bash
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs were cancelled."
+            exit 1
+          fi
+
+          echo "All required jobs passed."

@@ -44,28 +44,15 @@ impl Output {
 
     pub fn record(self, command: &str, status: &str, message: &str) {
         if self.is_json() {
-            println!(
-                "{{\"command\":\"{}\",\"status\":\"{}\",\"message\":\"{}\"}}",
-                escape_json(command),
-                escape_json(status),
-                escape_json(message)
-            );
+            let record = serde_json::json!({
+                "command": command,
+                "status": status,
+                "message": message,
+            });
+
+            println!("{record}");
         } else {
             self.line(message);
         }
     }
-}
-
-fn escape_json(value: &str) -> String {
-    value
-        .chars()
-        .flat_map(|character| match character {
-            '\\' => "\\\\".chars().collect::<Vec<_>>(),
-            '"' => "\\\"".chars().collect::<Vec<_>>(),
-            '\n' => "\\n".chars().collect::<Vec<_>>(),
-            '\r' => "\\r".chars().collect::<Vec<_>>(),
-            '\t' => "\\t".chars().collect::<Vec<_>>(),
-            _ => vec![character],
-        })
-        .collect()
 }

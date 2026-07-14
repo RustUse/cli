@@ -1,60 +1,65 @@
-use anyhow::{Result, ensure};
+//! Adds RustUse crates to a Cargo project.
 
-use crate::cli::AddArgs;
-use crate::index::DistributionMode;
-use crate::output::Output;
-use crate::project;
+use anyhow::Result;
+use clap::{Args, ValueEnum};
 
-use super::{entry_for, tests_label};
+use crate::{
+    output::Output,
+    rustuse::adoption::{self, AdoptionMode, AdoptionRequest},
+};
 
-pub fn run(args: AddArgs, output: Output) -> Result<()> {
-    let entry = entry_for(&args.target.name)?;
+use super::NamedCommandArgs;
 
-    if args.copy {
-        ensure!(
-            entry.supports_mode(DistributionMode::Copy),
-            "`{}` is not currently modeled for copy mode",
-            entry.name
-        );
+#[derive(Debug, Args)]
+pub struct AddArgs {
+    #[command(flatten)]
+    pub name: NamedCommandArgs,
 
-        let message = format!(
-            "Would copy {} source into this project {}. Copy mode: the project owns the copied source. {}",
-            entry.name,
-            tests_label(args.copy_options.with_tests),
-            copy_tracking_message()?
-        );
-        output.record("add", "dry-run", &message);
-        output.detail(format!("Source docs: {}", entry.docs_url));
-        return Ok(());
-    }
+    /// How the RustUse package should be adopted.
+    #[arg(long, value_enum, default_value_t = AddMode::Cargo)]
+    pub mode: AddMode,
 
-    ensure!(
-        entry.supports_mode(DistributionMode::Cargo),
-        "`{}` is not currently modeled for Cargo mode",
-        entry.name
-    );
-
-    let message = format!(
-        "Would add {} as a Cargo dependency. Cargo mode: RustUse owns the crate; this project depends on it.",
-        entry.name
-    );
-    output.record("add", "dry-run", &message);
-
-    if args.copy_options.with_tests {
-        output
-            .detail("--with-tests is only meaningful for copy mode; Cargo mode uses crate tests.");
-    }
-
-    Ok(())
+    /// Show the intended adoption without writing changes.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
-fn copy_tracking_message() -> Result<&'static str> {
-    let state = project::current_state()?;
-    if state.has_config {
-        Ok("rustuse.toml found; the copied primitive would be tracked.")
-    } else {
-        Ok(
-            "No rustuse.toml found; this would be copied without tracking. Run `rustuse init` for managed workflows.",
-        )
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum AddMode {
+    /// Add the published crate as a Cargo dependency.
+    Cargo,
+
+    /// Copy the source into the project for the user to own and maintain.
+    Own,
+}
+
+impl From<AddMode> for AdoptionMode {
+    fn from(mode: AddMode) -> Self {
+        match mode {
+            AddMode::Cargo => Self::Cargo,
+            AddMode::Own => Self::Own,
+        }
     }
+}
+
+pub fn run(args: AddArgs, output: Output) -> Result<()> {
+    let root = std::env::current_dir()?;
+
+    let result = adoption::adopt(AdoptionRequest {
+        root: &root,
+        name: &args.name.name,
+        mode: args.mode.into(),
+        dry_run: args.dry_run,
+    })?;
+
+    let message = format!(
+        "name={}, mode={}, dry_run={}",
+        result.name,
+        result.mode.as_str(),
+        result.dry_run
+    );
+
+    output.record("add", result.status(), &message);
+
+    Ok(())
 }

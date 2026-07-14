@@ -1,36 +1,41 @@
+//! Displays detailed information about a RustUse crate or primitive.
+
 use anyhow::Result;
+use clap::Args;
 
-use crate::cli::NamedCommandArgs;
-use crate::output::Output;
+use crate::{output::Output, rustuse::catalog};
 
-use super::entry_for;
+use super::NamedCommandArgs;
 
-pub fn run(args: NamedCommandArgs, output: Output) -> Result<()> {
-    let entry = entry_for(&args.name)?;
+#[derive(Debug, Args)]
+pub struct InfoArgs {
+    #[command(flatten)]
+    pub name: NamedCommandArgs,
+}
+
+pub fn run(args: InfoArgs, output: Output) -> Result<()> {
+    let Some(entry) = catalog::find_by_name(&args.name.name) else {
+        let message = format!("No RustUse entry found for `{}`.", args.name.name);
+        output.record("info", "missing", &message);
+        return Ok(());
+    };
 
     if output.is_json() {
-        let message = format!(
-            "name={}, kind={}, set={}, modes={}",
-            entry.name,
-            entry.kind,
-            entry.set,
-            entry.modes_label()
+        output.record(
+            "info",
+            "entry",
+            &format!(
+                "name={}, kind={}, set={}, docs={}",
+                entry.name, entry.kind, entry.set, entry.docs_url
+            ),
         );
-        output.record("info", "ok", &message);
         return Ok(());
     }
 
-    output.line(format!("name: {}", entry.name));
+    output.line(&entry.name);
     output.line(format!("kind: {}", entry.kind));
     output.line(format!("set: {}", entry.set));
     output.line(format!("docs: {}", entry.docs_url));
-    output.line(format!("api docs: {}", entry.api_docs_url));
-
-    if let Some(workspace_docs_url) = entry.workspace_docs_url {
-        output.line(format!("workspace docs: {workspace_docs_url}"));
-    }
-
-    output.line(format!("modes: {}", entry.modes_label()));
 
     Ok(())
 }

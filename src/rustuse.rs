@@ -1,0 +1,11 @@
+pub(crate) mod adapter;
+pub(crate) mod adoption;
+pub(crate) mod catalog;
+pub(crate) mod ci;
+pub(crate) mod config;
+pub(crate) mod facade;
+pub(crate) mod fleet;
+pub(crate) mod project;
+pub(crate) mod report;
+pub(crate) mod upgrade;
+pub(crate) mod utils;
