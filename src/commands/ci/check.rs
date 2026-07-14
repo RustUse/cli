@@ -1,3 +1,5 @@
+//! Runs RustUse validation checks for CI systems.
+
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};

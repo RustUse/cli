@@ -1,3 +1,5 @@
+//! Diagnoses RustUse installation, project, and environment problems.
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};

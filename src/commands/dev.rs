@@ -1,3 +1,5 @@
+//! Provides maintainer workflows for inspecting, reporting on, and repairing RustUse repositories.
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

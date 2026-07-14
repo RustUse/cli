@@ -3,7 +3,7 @@
 //! This crate powers the `rustuse` and `cargo-rustuse` binaries.
 //!
 //! Runtime entry points are [`run`], [`run_cargo_subcommand`], and [`run_from`].
-//! Command modules adapt CLI arguments into RustUse business workflows.
+//! Command modules adapt CLI arguments into RustUse workflows.
 
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

@@ -1,26 +1,35 @@
-use std::path::PathBuf;
+//! Parses arguments for upgrading the installed RustUse CLI.
 
 use anyhow::Result;
 use clap::Args;
 
 use crate::output::Output;
+use crate::rustuse::upgrade::{self, UpgradeOptions, UpgradeStatus};
 
-#[derive(Debug, Args)]
+/// Arguments for upgrading the installed RustUse CLI.
+#[derive(Clone, Copy, Debug, Args)]
 pub struct UpgradeArgs {
-    /// Facade repository path to upgrade.
-    #[arg(default_value = ".", value_name = "PATH")]
-    pub path: PathBuf,
+    /// Show the planned Cargo command without running it.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
+/// Adapts CLI arguments into the RustUse CLI upgrade workflow.
 pub(crate) fn run(args: UpgradeArgs, output: Output) -> Result<()> {
-    let summary = format!(
-        "RustUse facade upgrade - root: {}; errors: {}; warnings: {}",
-        args.path.display(),
-        1,
-        1
-    );
+    let outcome = upgrade::run(UpgradeOptions {
+        dry_run: args.dry_run,
+    })?;
 
-    output.record("dev upgrade", "unknown", &summary);
+    match outcome.status {
+        UpgradeStatus::Planned => output.record(
+            "upgrade",
+            "planned",
+            &format!("would run `{}`", outcome.command),
+        ),
+        UpgradeStatus::Completed => {
+            output.record("upgrade", "ok", "RustUse CLI upgraded successfully")
+        },
+    }
 
     Ok(())
 }

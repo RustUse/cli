@@ -1,3 +1,6 @@
+//! Defines the public RustUse command surface and routes parsed commands to
+//! their command adapters.
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
@@ -23,64 +26,66 @@ pub mod search;
 pub mod update;
 pub mod upgrade;
 
+/// Top-level commands accepted by the `rustuse` executable.
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Add a RustUse Cargo dependency.
+    /// Add a RustUse crate as a Cargo dependency.
     Add(add::AddArgs),
 
-    /// Manage RustUse catalog generation and validation.
+    /// Discover, inspect, generate, search, and validate the RustUse catalog.
     Catalog(catalog::CatalogArgs),
 
-    /// Check this directory for Cargo and RustUse project tracking state.
+    /// Check a Cargo project and its optional RustUse tracking state.
     Check(check::CheckArgs),
 
-    /// Run automation-safe RustUse validation.
+    /// Run stable, non-interactive RustUse validation for CI systems.
     Ci(ci::CiArgs),
 
-    /// Generate shell completion scripts for the `rustuse` command.
+    /// Generate a shell completion script for `rustuse`.
     Completions(completions::CompletionsArgs),
 
-    /// Run RustUse maintainer and repository development tools.
+    /// Run RustUse repository maintenance and development workflows.
     Dev(dev::DevArgs),
 
-    /// Show differences between RustUse crate versions or a facade and its catalog.
+    /// Compare RustUse crate versions or a facade against its catalog definition.
     Diff(diff::DiffArgs),
 
-    /// Print RustUse documentation URLs.
+    /// Print URLs for RustUse website, API, or workspace documentation.
     Docs(docs::DocsArgs),
 
-    /// Check this directory for Cargo and RustUse project tracking state.
+    /// Diagnose RustUse CLI, Cargo, and project configuration problems.
     Doctor(doctor::DoctorArgs),
 
     /// Print a friendly greeting from Ferris.
     #[command(visible_alias = "🦀")]
     Ferris(ferris::FerrisArgs),
 
-    /// Show metadata for a RustUse crate or primitive.
+    /// Show catalog metadata for a RustUse crate or primitive.
     Info(info::InfoArgs),
 
-    /// Opt into optional RustUse project tracking with rustuse.toml.
+    /// Initialize optional RustUse project tracking with `rustuse.toml`.
     Init(init::InitArgs),
 
-    /// Show optional rustuse.toml project tracking state.
+    /// Show the current project's optional `rustuse.toml` tracking state.
     List(list::ListArgs),
 
-    /// Show outdated RustUse crate and primitive versions.
+    /// Find outdated RustUse crate and primitive dependencies.
     Outdated(outdated::OutdatedArgs),
 
-    /// Remove a RustUse Cargo dependency.
+    /// Remove a RustUse crate from a Cargo project.
     Remove(remove::RemoveArgs),
 
-    /// Search the RustUse crate and primitive catalog.
+    /// Search the RustUse catalog for crates and primitives.
     Search(search::SearchArgs),
 
-    /// Update RustUse Cargo dependencies to the latest versions.
+    /// Update RustUse Cargo dependencies to their latest compatible versions.
     Update(update::UpdateArgs),
 
-    /// Upgrade RustUse to the latest version.
+    /// Upgrade the installed RustUse CLI to the latest available release.
     Upgrade(upgrade::UpgradeArgs),
 }
 
+/// Shared positional argument containing a named RustUse item.
 #[derive(Clone, Debug, Args)]
 pub struct NamedCommandArgs {
     /// RustUse crate, primitive, facade, or package name.
@@ -88,6 +93,7 @@ pub struct NamedCommandArgs {
     pub name: String,
 }
 
+/// Routes parsed CLI arguments to a command or the guided interactive menu.
 pub fn run(cli: Cli) -> Result<()> {
     let output = Output::new(cli.json, cli.quiet, cli.verbose);
 
@@ -97,6 +103,7 @@ pub fn run(cli: Cli) -> Result<()> {
     }
 }
 
+/// Dispatches a selected top-level command to its command adapter.
 fn run_command(command: Commands, output: Output, non_interactive: bool, yes: bool) -> Result<()> {
     match command {
         Commands::Add(args) => add::run(args, output),

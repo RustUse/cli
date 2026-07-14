@@ -1,3 +1,5 @@
+//! Checks a project for RustUse configuration and dependency issues.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

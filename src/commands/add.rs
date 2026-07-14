@@ -1,3 +1,5 @@
+//! Adds RustUse crates to a Cargo project.
+
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 

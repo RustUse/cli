@@ -7,4 +7,5 @@ pub(crate) mod facade;
 pub(crate) mod fleet;
 pub(crate) mod project;
 pub(crate) mod report;
+pub(crate) mod upgrade;
 pub(crate) mod utils;

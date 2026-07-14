@@ -1,3 +1,5 @@
+//! Resolves and opens RustUse website, API, and workspace documentation.
+
 use anyhow::{Result, bail};
 use clap::Args;
 

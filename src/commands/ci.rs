@@ -1,3 +1,5 @@
+//! Provides stable, non-interactive RustUse validation commands for CI systems.
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

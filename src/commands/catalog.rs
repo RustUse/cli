@@ -1,3 +1,5 @@
+//! Searches, inspects, generates, and validates the RustUse crate catalog.
+
 use std::{fs, path::PathBuf};
 
 use anyhow::{Context, Result, bail};

@@ -1,3 +1,5 @@
+//! Finds outdated RustUse dependencies in a Cargo project.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

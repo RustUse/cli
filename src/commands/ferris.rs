@@ -1,3 +1,5 @@
+//! Displays the RustUse Ferris greeting.
+
 use anyhow::Result;
 use clap::Args;
 

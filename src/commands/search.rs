@@ -1,3 +1,5 @@
+//! Searches the RustUse catalog for crates and primitives.
+
 use anyhow::Result;
 use clap::Args;
 

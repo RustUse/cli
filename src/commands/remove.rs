@@ -1,3 +1,5 @@
+//! Removes RustUse dependencies or managed tracking entries from a project.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

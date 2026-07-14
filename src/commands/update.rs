@@ -1,3 +1,5 @@
+//! Updates RustUse dependency versions within the current project configuration.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

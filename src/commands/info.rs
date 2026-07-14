@@ -1,3 +1,5 @@
+//! Displays detailed information about a RustUse crate or primitive.
+
 use anyhow::Result;
 use clap::Args;
 

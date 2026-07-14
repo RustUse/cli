@@ -1,3 +1,5 @@
+//! Initializes optional RustUse tracking for a Cargo project.
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};

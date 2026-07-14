@@ -1,3 +1,5 @@
+//! Lists RustUse dependencies, tracked entries, or available catalog entries.
+
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};

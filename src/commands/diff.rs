@@ -1,3 +1,5 @@
+//! Shows planned RustUse-managed changes without writing them.
+
 use std::path::PathBuf;
 
 use anyhow::Result;
