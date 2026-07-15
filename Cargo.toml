@@ -1,13 +1,16 @@
 [package]
 autobins = false
 categories = ["command-line-utilities", "development-tools", "development-tools::cargo-plugins"]
-description = "Command-line tooling for adopting, managing, and maintaining RustUse crates."
+description = "A Cargo subcommand and CLI for adopting, managing, and maintaining RustUse crates."
+documentation = "https://docs.rs/rustuse-cli"
 edition = "2024"
 homepage = "https://rustuse.org/cli"
-keywords = ["cargo-subcommand", "cli", "dependency-manager", "rustuse", "rustuse-cli"]
+include = ["/LICENSE*", "/README.md", "/src/**", "/tests/**"]
+keywords = ["cargo-subcommand", "cli", "dependency-manager", "rustuse", "workspace"]
 license = "MIT OR Apache-2.0"
 name = "rustuse-cli"
 publish = ["crates-io"]
+readme = "README.md"
 repository = "https://github.com/RustUse/cli"
 rust-version = "1.95.0"
 version = "0.2.0-beta.2"
