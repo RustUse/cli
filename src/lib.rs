@@ -1,34 +1,60 @@
-//! RustUse command-line adoption helper.
+//! `RustUse` command-line adoption helper.
 //!
 //! This crate powers the `rustuse` and `cargo-rustuse` binaries.
 //!
 //! Runtime entry points are [`run`], [`run_cargo_subcommand`], and [`run_from`].
-//! Command modules adapt CLI arguments into RustUse workflows.
+//! Command modules adapt CLI arguments into `RustUse` workflows.
 
-#![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
 use std::ffi::{OsStr, OsString};
-
-mod cli;
-mod commands;
-mod output;
-mod rustuse;
 
 use anyhow::Result;
 use clap::Parser;
 
 use crate::cli::Cli;
 
+mod cli;
+mod commands;
+mod output;
+mod rustuse;
+
+/// Runs the `rustuse` CLI using arguments from the current process.
+///
+/// # Errors
+///
+/// Returns an error if the selected command cannot complete successfully,
+/// including failures involving configuration, filesystem access, external
+/// commands, or output rendering.
 pub fn run() -> Result<()> {
     run_from(std::env::args_os())
 }
 
+/// Runs `RustUse` as the `cargo rustuse` subcommand.
+///
+/// Cargo may invoke a subcommand binary with an additional `rustuse` argument.
+/// This entry point normalizes that argument shape before parsing the command.
+///
+/// # Errors
+///
+/// Returns an error if the selected command cannot complete successfully,
+/// including failures involving configuration, filesystem access, external
+/// commands, or output rendering.
 pub fn run_cargo_subcommand() -> Result<()> {
     run_from(cargo_subcommand_args())
 }
 
+/// Runs the `RustUse` CLI using the provided command-line arguments.
+///
+/// This entry point supports embedding and testing the CLI without reading
+/// arguments directly from the current process.
+///
+/// # Errors
+///
+/// Returns an error if the selected command cannot complete successfully,
+/// including failures involving configuration, filesystem access, external
+/// commands, or output rendering.
 pub fn run_from<I, T>(args: I) -> Result<()>
 where
     I: IntoIterator<Item = T>,

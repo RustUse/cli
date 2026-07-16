@@ -20,7 +20,5 @@ pub(crate) fn run(args: DevNewArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev new", "unknown", &summary);
-
-    Ok(())
+    output.record("dev new", "unknown", &summary)
 }

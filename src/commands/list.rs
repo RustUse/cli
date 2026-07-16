@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
+use serde::Serialize;
 
 use crate::{
     output::Output,
@@ -12,7 +13,7 @@ use crate::{
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    /// Show all tracked entries.
+    /// Show all available catalog entries.
     #[arg(long)]
     pub all: bool,
 
@@ -21,17 +22,63 @@ pub struct ListArgs {
     pub path: PathBuf,
 }
 
-pub fn run(args: ListArgs, output: Output) -> Result<()> {
-    let root = std::fs::canonicalize(&args.path)
-        .with_context(|| format!("failed to resolve `{}`", args.path.display()))?;
-    let state = project::detect(&root);
+#[derive(Debug, Serialize)]
+struct ListResponse {
+    command: &'static str,
+    status: &'static str,
+    scope: ListScope,
+    returned: usize,
+    entries: Vec<ListEntry>,
+}
 
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum ListScope {
+    Catalog,
+    Tracked,
+}
+
+#[derive(Debug, Serialize)]
+struct ListEntry {
+    name: String,
+    mode: String,
+}
+
+pub fn run(args: ListArgs, output: Output) -> Result<()> {
     if args.all {
-        for entry in catalog::all_entries() {
-            print_entry(output, &entry.name, "catalog");
-        }
-        return Ok(());
+        return list_catalog(&output);
     }
+
+    list_tracked(&args.path, &output)
+}
+
+fn list_catalog(output: &Output) -> Result<()> {
+    let mut entries: Vec<_> = catalog::all_entries()
+        .iter()
+        .map(|entry| ListEntry {
+            name: entry.name.to_string(),
+            mode: "catalog".to_owned(),
+        })
+        .collect();
+
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+
+    render(
+        output,
+        ListResponse {
+            command: "list",
+            status: if entries.is_empty() { "empty" } else { "ok" },
+            scope: ListScope::Catalog,
+            returned: entries.len(),
+            entries,
+        },
+    )
+}
+
+fn list_tracked(path: &PathBuf, output: &Output) -> Result<()> {
+    let root = std::fs::canonicalize(path)
+        .with_context(|| format!("failed to resolve `{}`", path.display()))?;
+    let state = project::detect(&root);
 
     if !state.has_config {
         bail!(
@@ -44,24 +91,46 @@ pub fn run(args: ListArgs, output: Output) -> Result<()> {
         .with_context(|| format!("failed to read `{}`", state.config_path.display()))?;
     let rustuse_config = config::from_toml(&raw)?;
 
-    if rustuse_config.primitives.is_empty() {
-        output.record("list", "empty", "No tracked RustUse primitives.");
-        return Ok(());
+    let mut entries: Vec<_> = rustuse_config
+        .primitives
+        .into_iter()
+        .map(|primitive| ListEntry {
+            name: primitive.name,
+            mode: primitive.mode.as_str().to_owned(),
+        })
+        .collect();
+
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+
+    render(
+        output,
+        ListResponse {
+            command: "list",
+            status: if entries.is_empty() { "empty" } else { "ok" },
+            scope: ListScope::Tracked,
+            returned: entries.len(),
+            entries,
+        },
+    )
+}
+
+fn render(output: &Output, response: ListResponse) -> Result<()> {
+    if output.is_json() {
+        return output.json(&response);
     }
 
-    let mut primitives = rustuse_config.primitives;
-    primitives.sort_by(|left, right| left.name.cmp(&right.name));
-    for primitive in primitives {
-        print_entry(output, &primitive.name, primitive.mode.as_str());
+    if response.entries.is_empty() {
+        let message = match response.scope {
+            ListScope::Catalog => "No RustUse catalog entries are available.",
+            ListScope::Tracked => "No tracked RustUse primitives.",
+        };
+
+        return output.line(message);
+    }
+
+    for entry in response.entries {
+        output.line(format!("{} ({})", entry.name, entry.mode))?;
     }
 
     Ok(())
-}
-
-fn print_entry(output: Output, name: &str, mode: &str) {
-    if output.is_json() {
-        output.record("list", "entry", &format!("name={name}, mode={mode}"));
-    } else {
-        output.line(format!("{name} ({mode})"));
-    }
 }

@@ -9,7 +9,5 @@ use crate::output::Output;
 pub struct FerrisArgs {}
 
 pub fn run(_args: FerrisArgs, output: Output) -> Result<()> {
-    output.line("🦀 Hello from Ferris! Welcome to RustUse.");
-
-    Ok(())
+    output.line("🦀 Hello from Ferris! Welcome to RustUse.")
 }

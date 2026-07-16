@@ -1,9 +1,11 @@
-//! Markdown report generation for a local RustUse fleet.
+//! Markdown report generation for a local `RustUse` fleet.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use serde::Serialize;
 
 use crate::output::Output;
 use crate::rustuse::facade::codes::{FacadeIssueBucket, FacadeIssueCode};
@@ -15,6 +17,26 @@ use crate::rustuse::report::markdown::{write_markdown_report, yes_no};
 const FLEET_REPORT_FILE_NAME: &str = "rustuse-fleet-report.md";
 const TOP_MANIFEST_OFFENDER_LIMIT: usize = 15;
 
+#[derive(Debug, Serialize)]
+struct FleetReportResponse {
+    command: &'static str,
+    status: String,
+    fleet: PathBuf,
+    fleet_name: String,
+    output: PathBuf,
+    repositories: usize,
+    missing_repositories: usize,
+    facades: usize,
+    facades_with_git: usize,
+    facades_missing_git: usize,
+    child_crates: usize,
+    manifests: usize,
+    manifest_issues: usize,
+    errors: usize,
+    warnings: usize,
+    invalid_categories: usize,
+}
+
 pub(crate) fn generate_markdown_report(fleet: &Path, output: Output) -> Result<()> {
     let diagnostics = FleetDiagnostics::inspect(fleet)?;
     let report = build_report(&diagnostics);
@@ -22,21 +44,44 @@ pub(crate) fn generate_markdown_report(fleet: &Path, output: Output) -> Result<(
 
     write_markdown_report(&output_path, &report)?;
 
+    let response = FleetReportResponse {
+        command: "fleet report",
+        status: diagnostics.status().to_owned(),
+        fleet: diagnostics.fleet.clone(),
+        fleet_name: diagnostics.name.clone(),
+        output: output_path,
+        repositories: diagnostics.repos.len(),
+        missing_repositories: diagnostics.missing_fleet_repo_count(),
+        facades: diagnostics.facade_count(),
+        facades_with_git: diagnostics.facade_git_count(),
+        facades_missing_git: diagnostics.missing_facade_git_count(),
+        child_crates: diagnostics.child_crate_count(),
+        manifests: diagnostics.manifest_count(),
+        manifest_issues: diagnostics.manifest_issue_count(),
+        errors: diagnostics.manifest_error_count(),
+        warnings: diagnostics.manifest_warning_count(),
+        invalid_categories: diagnostics.invalid_category_count(),
+    };
+
+    render(output, &response)
+}
+
+fn render(output: Output, response: &FleetReportResponse) -> Result<()> {
     if output.is_json() {
-        output.record(
-            "fleet report",
-            diagnostics.status(),
-            &format!("wrote {}", output_path.display()),
-        );
-    } else {
-        output.line(format!(
-            "RustUse fleet report - fleet: {}",
-            diagnostics.fleet.display()
-        ));
-        output.line(format!("wrote: {}", output_path.display()));
+        return output.json(response);
     }
 
-    Ok(())
+    output.line(format!(
+        "RustUse fleet report - fleet: {}",
+        response.fleet.display()
+    ))?;
+    output.line(format!("status: {}", response.status))?;
+    output.line(format!("facades: {}", response.facades))?;
+    output.line(format!("child crates: {}", response.child_crates))?;
+    output.line(format!("manifests: {}", response.manifests))?;
+    output.line(format!("errors: {}", response.errors))?;
+    output.line(format!("warnings: {}", response.warnings))?;
+    output.line(format!("wrote: {}", response.output.display()))
 }
 
 fn default_fleet_report_path(fleet: &Path) -> PathBuf {
@@ -59,71 +104,87 @@ fn build_report(diagnostics: &FleetDiagnostics) -> String {
 fn write_summary(markdown: &mut String, diagnostics: &FleetDiagnostics) {
     markdown.push_str("# RustUse Fleet Report\n\n");
     markdown.push_str("## Summary\n\n");
-    markdown.push_str(&format!("- Fleet: `{}`\n", diagnostics.fleet.display()));
-    markdown.push_str(&format!("- Fleet name: `{}`\n", diagnostics.name));
-    markdown.push_str(&format!(
-        "- CLI repository present: {}\n",
+
+    let _ = writeln!(markdown, "- Fleet: `{}`", diagnostics.fleet.display());
+    let _ = writeln!(markdown, "- Fleet name: `{}`", diagnostics.name);
+    let _ = writeln!(
+        markdown,
+        "- CLI repository present: {}",
         yes_no(diagnostics.has_cli())
-    ));
-    markdown.push_str(&format!(
-        "- Documentation repository present: {}\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Documentation repository present: {}",
         yes_no(diagnostics.has_docs())
-    ));
-    markdown.push_str(&format!(
-        "- Standard fleet name: {}\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Standard fleet name: {}",
         if diagnostics.name == "rustuse" {
             "yes"
         } else {
             "no, expected `rustuse`"
         }
-    ));
-    markdown.push_str(&format!(
-        "- Fleet repositories missing: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Fleet repositories missing: `{}`",
         diagnostics.missing_fleet_repo_count()
-    ));
-    markdown.push_str(&format!(
-        "- `use-*` facades: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- `use-*` facades: `{}`",
         diagnostics.facade_count()
-    ));
-    markdown.push_str(&format!(
-        "- Facades with `.git`: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Facades with `.git`: `{}`",
         diagnostics.facade_git_count()
-    ));
-    markdown.push_str(&format!(
-        "- Facades missing `.git`: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Facades missing `.git`: `{}`",
         diagnostics.missing_facade_git_count()
-    ));
-    markdown.push_str(&format!(
-        "- Child crates detected: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Child crates detected: `{}`",
         diagnostics.child_crate_count()
-    ));
-    markdown.push_str(&format!(
-        "- Cargo manifests inspected: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Cargo manifests inspected: `{}`",
         diagnostics.manifest_count()
-    ));
-    markdown.push_str(&format!(
-        "- Cargo manifest issues: `{}` (`{}` error(s), `{}` warning(s))\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Cargo manifest issues: `{}` (`{}` error(s), `{}` warning(s))",
         diagnostics.manifest_issue_count(),
         diagnostics.manifest_error_count(),
         diagnostics.manifest_warning_count()
-    ));
-    markdown.push_str(&format!(
-        "- Invalid crates.io category slugs: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Invalid crates.io category slugs: `{}`",
         diagnostics.invalid_category_count()
-    ));
-    markdown.push_str(&format!("- Status: **{}**\n\n", diagnostics.status()));
+    );
+    let _ = writeln!(markdown, "- Status: **{}**", diagnostics.status());
+
+    markdown.push('\n');
 
     let missing_git = diagnostics.missing_facade_git_names().collect::<Vec<_>>();
 
     if !missing_git.is_empty() {
         markdown.push_str("- Facades missing `.git`: ");
-        markdown.push_str(
-            &missing_git
-                .iter()
-                .map(|name| format!("`{name}`"))
-                .collect::<Vec<_>>()
-                .join(", "),
-        );
+
+        for (index, name) in missing_git.iter().enumerate() {
+            if index > 0 {
+                markdown.push_str(", ");
+            }
+
+            let _ = write!(markdown, "`{name}`");
+        }
+
         markdown.push_str("\n\n");
     }
 }
@@ -146,12 +207,13 @@ fn write_fleet_repositories(markdown: &mut String, diagnostics: &FleetDiagnostic
     markdown.push_str("|---|---:|---:|\n");
 
     for repo in &diagnostics.repos {
-        markdown.push_str(&format!(
-            "| `{}` | {} | {} |\n",
+        let _ = writeln!(
+            markdown,
+            "| `{}` | {} | {} |",
             repo.name,
             yes_no(repo.present),
             yes_no(repo.has_git)
-        ));
+        );
     }
 
     markdown.push('\n');
@@ -159,24 +221,31 @@ fn write_fleet_repositories(markdown: &mut String, diagnostics: &FleetDiagnostic
 
 fn write_manifest_health(markdown: &mut String, diagnostics: &FleetDiagnostics) {
     markdown.push_str("## Cargo Manifest Health\n\n");
-    markdown.push_str(&format!(
-        "- Facades inspected: `{}`\n",
+
+    let _ = writeln!(
+        markdown,
+        "- Facades inspected: `{}`",
         diagnostics.manifests.len()
-    ));
-    markdown.push_str(&format!(
-        "- Manifests inspected: `{}`\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Manifests inspected: `{}`",
         diagnostics.manifest_count()
-    ));
-    markdown.push_str(&format!(
-        "- Issues: `{}` (`{}` error(s), `{}` warning(s))\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Issues: `{}` (`{}` error(s), `{}` warning(s))",
         diagnostics.manifest_issue_count(),
         diagnostics.manifest_error_count(),
         diagnostics.manifest_warning_count()
-    ));
-    markdown.push_str(&format!(
-        "- Invalid crates.io category slugs: `{}`\n\n",
+    );
+    let _ = writeln!(
+        markdown,
+        "- Invalid crates.io category slugs: `{}`",
         diagnostics.invalid_category_count()
-    ));
+    );
+
+    markdown.push('\n');
 
     write_manifest_issue_summary(markdown, &diagnostics.manifests);
     write_manifest_shape_summary(markdown, &diagnostics.manifests);
@@ -222,10 +291,7 @@ fn write_manifest_issue_summary(markdown: &mut String, reports: &[FacadeManifest
     markdown.push_str("|---|---|---:|\n");
 
     for (severity, code, count) in rows {
-        markdown.push_str(&format!(
-            "| `{severity}` | `{}` | {count} |\n",
-            code.as_str()
-        ));
+        let _ = writeln!(markdown, "| `{severity}` | `{}` | {count} |", code.as_str());
     }
 
     markdown.push('\n');
@@ -255,7 +321,7 @@ fn write_manifest_shape_summary(markdown: &mut String, reports: &[FacadeManifest
     markdown.push_str("|---|---:|\n");
 
     for (bucket, count) in rows {
-        markdown.push_str(&format!("| {} | {count} |\n", bucket.as_str()));
+        let _ = writeln!(markdown, "| {} | {count} |", bucket.as_str());
     }
 
     markdown.push('\n');
@@ -267,15 +333,16 @@ fn write_manifest_summary_by_facade(markdown: &mut String, reports: &[FacadeMani
     markdown.push_str("|---|---|---:|---:|---:|---:|\n");
 
     for report in reports {
-        markdown.push_str(&format!(
-            "| {} | `{}` | {} | {} | {} | {} |\n",
+        let _ = writeln!(
+            markdown,
+            "| {} | `{}` | {} | {} | {} | {} |",
             report.status(),
             report.facade_name,
             report.manifest_count(),
             report.error_count(),
             report.warning_count(),
             report.invalid_category_count()
-        ));
+        );
     }
 
     markdown.push('\n');
@@ -305,18 +372,23 @@ fn write_manifest_top_offenders(
     });
 
     markdown.push_str("### Top Manifest Offenders\n\n");
-    markdown.push_str(&format!(
-        "Showing the top {} facade(s) by manifest issue count.\n\n",
+
+    let _ = writeln!(
+        markdown,
+        "Showing the top {} facade(s) by manifest issue count.",
         limit.min(reports_with_issues.len())
-    ));
+    );
+
+    markdown.push('\n');
     markdown.push_str(
         "| Rank | Status | Facade | Manifests | Issues | Errors | Warnings | Invalid Categories |\n",
     );
     markdown.push_str("|---:|---|---|---:|---:|---:|---:|---:|\n");
 
     for (index, report) in reports_with_issues.iter().take(limit).enumerate() {
-        markdown.push_str(&format!(
-            "| {} | {} | `{}` | {} | {} | {} | {} | {} |\n",
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | `{}` | {} | {} | {} | {} | {} |",
             index + 1,
             report.status(),
             report.facade_name,
@@ -325,7 +397,7 @@ fn write_manifest_top_offenders(
             report.error_count(),
             report.warning_count(),
             report.invalid_category_count()
-        ));
+        );
     }
 
     markdown.push('\n');
@@ -338,8 +410,9 @@ fn write_facade_inventory(markdown: &mut String, diagnostics: &FleetDiagnostics)
     markdown.push_str("|---|---|---:|---:|---:|---:|---:|\n");
 
     for facade in &diagnostics.facades {
-        markdown.push_str(&format!(
-            "| {} | `{}` | {} | {} | {} | {} | {} |\n",
+        let _ = writeln!(
+            markdown,
+            "| {} | `{}` | {} | {} | {} | {} | {} |",
             facade.status(),
             facade.name,
             display_markdown_version(facade),
@@ -347,7 +420,7 @@ fn write_facade_inventory(markdown: &mut String, diagnostics: &FleetDiagnostics)
             yes_no(facade.has_cargo_toml),
             yes_no(facade.has_crates_dir),
             facade.child_crate_count
-        ));
+        );
     }
 
     markdown.push('\n');

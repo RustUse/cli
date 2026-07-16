@@ -1,4 +1,4 @@
-//! Plans and performs upgrades of the installed RustUse CLI.
+//! Plans and performs upgrades of the installed `RustUse` CLI.
 
 use anyhow::Result;
 
@@ -6,14 +6,14 @@ use crate::rustuse::adapter::cargo::install::{CargoInstallOptions, install_cargo
 
 const PACKAGE_NAME: &str = "rustuse-cli";
 
-/// Options controlling a RustUse CLI upgrade.
+/// Options controlling a `RustUse` CLI upgrade.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct UpgradeOptions {
     /// Whether to plan the upgrade without executing Cargo.
     pub(crate) dry_run: bool,
 }
 
-/// Result of planning or performing a RustUse CLI upgrade.
+/// Result of planning or performing a `RustUse` CLI upgrade.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UpgradeOutcome {
     /// Final workflow status.
@@ -23,7 +23,7 @@ pub(crate) struct UpgradeOutcome {
     pub(crate) command: String,
 }
 
-/// Final status of a RustUse CLI upgrade.
+/// Final status of a `RustUse` CLI upgrade.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UpgradeStatus {
     /// The upgrade was planned but not executed.
@@ -33,7 +33,7 @@ pub(crate) enum UpgradeStatus {
     Completed,
 }
 
-/// Plans or performs an upgrade of the installed RustUse CLI.
+/// Plans or performs an upgrade of the installed `RustUse` CLI.
 pub(crate) fn run(options: UpgradeOptions) -> Result<UpgradeOutcome> {
     let install_options = CargoInstallOptions {
         package: PACKAGE_NAME,

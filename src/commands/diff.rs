@@ -22,7 +22,5 @@ pub(crate) fn run(args: DiffArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev diff", "unknown", &summary);
-
-    Ok(())
+    output.record("dev diff", "unknown", &summary)
 }

@@ -1,4 +1,4 @@
-//! Integration tests for upgrading the installed RustUse CLI.
+//! Integration tests for upgrading the installed `RustUse` CLI.
 
 mod common;
 

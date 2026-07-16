@@ -22,7 +22,5 @@ pub(crate) fn run(args: UpdateArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev update", "unknown", &summary);
-
-    Ok(())
+    output.record("update", "unknown", &summary)
 }

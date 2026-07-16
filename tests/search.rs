@@ -1,4 +1,4 @@
-//! Catalog-based `search` behavior (must work outside a RustUse root).
+//! Catalog-based `search` behavior (must work outside a `RustUse` root).
 
 mod common;
 
@@ -28,7 +28,7 @@ fn search_works_outside_a_rustuse_root() {
 
     assert!(
         output.status.success(),
-        "search should not require a RustUse root"
+        "search should not require a `RustUse` root"
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

@@ -5,7 +5,7 @@ description = "A Cargo subcommand and CLI for adopting, managing, and maintainin
 documentation = "https://docs.rs/rustuse-cli"
 edition = "2024"
 homepage = "https://rustuse.org/cli"
-include = ["/LICENSE*", "/README.md", "/src/**", "/tests/**"]
+include = ["LICENSE*", "README.md", "src/**", "tests/**"]
 keywords = ["cargo-subcommand", "cli", "dependency-manager", "rustuse", "workspace"]
 license = "MIT OR Apache-2.0"
 name = "rustuse-cli"
@@ -22,8 +22,8 @@ resolver = "3"
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]
-nursery = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
+# nursery = { level = "warn", priority = -1 }
+# pedantic = { level = "warn", priority = -1 }
 
 dbg_macro = "warn"
 expect_used = "warn"

@@ -22,7 +22,5 @@ pub(crate) fn run(args: CheckArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev check", "unknown", &summary);
-
-    Ok(())
+    output.record("dev check", "unknown", &summary)
 }

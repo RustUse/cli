@@ -22,7 +22,5 @@ pub(crate) fn run(args: RemoveArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev remove", "unknown", &summary);
-
-    Ok(())
+    output.record("dev remove", "unknown", &summary)
 }

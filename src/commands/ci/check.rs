@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::{Args, ValueEnum};
+use serde::Serialize;
 
 use crate::output::Output;
 use crate::rustuse::facade::diagnostics::FacadeDiagnostics;
@@ -29,48 +30,65 @@ pub enum CheckKind {
     Facade,
 }
 
+#[derive(Debug, Serialize)]
+struct CheckResponse {
+    command: &'static str,
+    status: String,
+    passed: bool,
+    kind: &'static str,
+    deny_warnings: bool,
+    facade: PathBuf,
+    errors: usize,
+    warnings: usize,
+    issues: Vec<CheckIssue>,
+}
+
+#[derive(Debug, Serialize)]
+struct CheckIssue {
+    severity: String,
+    code: String,
+    message: String,
+    path: Option<PathBuf>,
+}
+
 pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
-    if !matches!(args.kind, CheckKind::Auto | CheckKind::Facade) {
-        bail!(
-            "ci check currently supports only auto and facade kinds; received {:?}",
-            args.kind
-        );
-    }
+    let diagnostics = match args.kind {
+        CheckKind::Auto | CheckKind::Facade => FacadeDiagnostics::inspect(&args.path)?,
+    };
 
-    let diagnostics = FacadeDiagnostics::inspect(&args.path)?;
-    let status = diagnostics.status();
-    let summary = format!(
-        "RustUse CI check - facade: {}; errors: {}; warnings: {}",
-        diagnostics.facade.root.display(),
-        diagnostics.error_count(),
-        diagnostics.warning_count()
-    );
+    let errors = diagnostics.error_count();
+    let warnings = diagnostics.warning_count();
+    let passed = errors == 0 && (!args.deny_warnings || warnings == 0);
 
-    if output.is_json() {
-        output.record("ci check", status, &summary);
-    } else {
-        output.line(&summary);
-        for issue in &diagnostics.issues {
-            let path = issue
-                .path
-                .as_deref()
-                .map_or_else(|| "".to_owned(), |path| format!(" [{}]", path.display()));
-            output.line(format!(
-                "{} {}: {}{}",
-                issue.severity.as_str(),
-                issue.code,
-                issue.message,
-                path
-            ));
-        }
-    }
+    let response = CheckResponse {
+        command: "ci check",
+        status: diagnostics.status().to_owned(),
+        passed,
+        kind: args.kind.as_str(),
+        deny_warnings: args.deny_warnings,
+        facade: diagnostics.facade.root.clone(),
+        errors,
+        warnings,
+        issues: diagnostics
+            .issues
+            .iter()
+            .map(|issue| CheckIssue {
+                severity: issue.severity.as_str().to_owned(),
+                code: issue.code.to_string(),
+                message: issue.message.clone(),
+                path: issue.path.clone(),
+            })
+            .collect(),
+    };
 
-    if diagnostics.error_count() > 0 || (args.deny_warnings && diagnostics.warning_count() > 0) {
+    render(&output, &response)?;
+
+    if !response.passed {
         bail!(
             "ci check failed with {} error(s) and {} warning(s){}",
-            diagnostics.error_count(),
-            diagnostics.warning_count(),
-            if args.deny_warnings {
+            response.errors,
+            response.warnings,
+            if response.deny_warnings {
                 "; --deny-warnings is enabled"
             } else {
                 ""
@@ -79,4 +97,40 @@ pub fn run(args: CheckCiArgs, output: Output) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn render(output: &Output, response: &CheckResponse) -> Result<()> {
+    if output.is_json() {
+        return output.json(response);
+    }
+
+    output.line(format!(
+        "RustUse CI check - facade: {}; errors: {}; warnings: {}",
+        response.facade.display(),
+        response.errors,
+        response.warnings
+    ))?;
+
+    for issue in &response.issues {
+        let path = issue
+            .path
+            .as_deref()
+            .map_or_else(String::new, |path| format!(" [{}]", path.display()));
+
+        output.line(format!(
+            "{} {}: {}{}",
+            issue.severity, issue.code, issue.message, path
+        ))?;
+    }
+
+    Ok(())
+}
+
+impl CheckKind {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Facade => "facade",
+        }
+    }
 }

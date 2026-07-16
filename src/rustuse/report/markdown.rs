@@ -1,7 +1,8 @@
-//! Shared Markdown report output helpers for RustUse development commands.
+//! Shared Markdown report output helpers for `RustUse` development commands.
 
+use std::fmt::Write as _;
 use std::fs::{self, File};
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Write as IoWrite};
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -13,11 +14,7 @@ pub(crate) fn write_presence_table(markdown: &mut String, checks: &[PresenceChec
     markdown.push_str("|---|---:|\n");
 
     for check in checks {
-        markdown.push_str(&format!(
-            "| `{}` | {} |\n",
-            check.path,
-            yes_no(check.present)
-        ));
+        let _ = writeln!(markdown, "| `{}` | {} |", check.path, yes_no(check.present));
     }
 
     markdown.push('\n');
@@ -44,6 +41,7 @@ pub(crate) fn write_markdown_report(path: &Path, report: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn yes_no(value: bool) -> &'static str {
+#[must_use]
+pub(crate) const fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }

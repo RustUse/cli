@@ -22,7 +22,5 @@ pub(crate) fn run(args: OutdatedArgs, output: Output) -> Result<()> {
         1
     );
 
-    output.record("dev outdated", "unknown", &summary);
-
-    Ok(())
+    output.record("dev outdated", "unknown", &summary)
 }
