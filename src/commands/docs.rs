@@ -1,7 +1,8 @@
-//! Resolves and opens RustUse website, API, and workspace documentation.
+//! Resolves RustUse website, API, and workspace documentation URLs.
 
 use anyhow::{Result, bail};
 use clap::Args;
+use serde::Serialize;
 
 use crate::{output::Output, rustuse::catalog};
 
@@ -11,50 +12,79 @@ pub struct DocsArgs {
     #[arg(value_name = "NAME")]
     pub name: Option<String>,
 
-    /// Print API documentation URL.
+    /// Resolve the API documentation URL.
     #[arg(long)]
     pub api: bool,
 
-    /// Print workspace documentation URL.
+    /// Resolve the workspace documentation URL.
     #[arg(long)]
     pub workspace: bool,
 }
 
-pub fn run(args: DocsArgs, output: Output) -> Result<()> {
-    let name = args.name.unwrap_or_else(|| "<root>".to_owned());
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DocsKind {
+    Website,
+    Docs,
+    Api,
+    Workspace,
+}
 
+#[derive(Debug, Serialize)]
+struct DocsResponse {
+    command: &'static str,
+    status: &'static str,
+    name: Option<String>,
+    kind: DocsKind,
+    url: String,
+}
+
+pub fn run(args: DocsArgs, output: Output) -> Result<()> {
     if args.api && args.workspace {
         bail!("--api and --workspace cannot be used together");
     }
 
-    let (url, kind) = if name == "<root>" {
-        ("https://rustuse.org/".to_owned(), "root")
-    } else {
-        let Some(entry) = catalog::find_by_name(&name) else {
-            bail!("No RustUse entry found for `{name}`.");
-        };
-
-        if args.api {
-            (entry.api_docs_url.clone(), "api")
-        } else if args.workspace {
-            let Some(url) = entry.workspace_docs_url.clone() else {
-                bail!("RustUse entry `{name}` has no workspace documentation URL.");
-            };
-            (url, "workspace")
-        } else {
-            (entry.docs_url.clone(), "docs")
-        }
-    };
+    let response = resolve(&args)?;
 
     if output.is_json() {
-        output.record(
-            "docs",
-            "ok",
-            &format!("name={name}, kind={kind}, url={url}"),
-        );
-    } else {
-        output.line(url);
+        return output.json(&response);
     }
 
-    Ok(())
+    output.line(&response.url)
+}
+
+fn resolve(args: &DocsArgs) -> Result<DocsResponse> {
+    let Some(name) = args.name.as_deref() else {
+        return Ok(DocsResponse {
+            command: "docs",
+            status: "ok",
+            name: None,
+            kind: DocsKind::Website,
+            url: "https://rustuse.org/".to_owned(),
+        });
+    };
+
+    let Some(entry) = catalog::find_by_name(name) else {
+        bail!("No RustUse entry found for `{name}`.");
+    };
+
+    let (kind, url) = if args.api {
+        (DocsKind::Api, entry.api_docs_url.clone())
+    } else if args.workspace {
+        let Some(url) = entry.workspace_docs_url.clone() else {
+            bail!("RustUse entry `{name}` has no workspace documentation URL.");
+        };
+
+        (DocsKind::Workspace, url)
+    } else {
+        (DocsKind::Docs, entry.docs_url.clone())
+    };
+
+    Ok(DocsResponse {
+        command: "docs",
+        status: "ok",
+        name: Some(entry.name.clone()),
+        kind,
+        url,
+    })
 }

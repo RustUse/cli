@@ -1,5 +1,5 @@
 # --- Cargo & Build Artifacts ---
-**/target/
+target/
 rustc-ice-*.txt
 
 # --- Rust Development Tools ---
@@ -14,6 +14,7 @@ rustc-ice-*.txt
 .env.*
 !.env.example
 !.env.sample
+.envrc
 .direnv/
 
 # --- Editor State ---
@@ -35,3 +36,4 @@ $RECYCLE.BIN/
 
 # --- Generated Reports ---
 sbom.cyclonedx*
+rustuse-report.md

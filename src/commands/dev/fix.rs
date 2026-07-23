@@ -9,27 +9,27 @@ use dialoguer::{MultiSelect, theme::ColorfulTheme};
 
 use crate::{
     output::Output,
-    rustuse::facade::fix::{self, FacadeFixOptions, FixMode},
+    rustuse::facade::fix::{self, FacadeFixGroup, FacadeFixOptions, FacadeFixTarget, FixMode},
 };
 
 const FIX_CHOICES: &[FixChoice] = &[
     FixChoice {
-        code: "facade-wiring",
+        group: FacadeFixGroup::FacadeWiring,
         label: "Facade wiring",
         description: "optional child dependencies and facade features",
     },
     FixChoice {
-        code: "workspace-shape",
+        group: FacadeFixGroup::WorkspaceShape,
         label: "Workspace shape",
         description: "members, resolver, shared metadata, and lints",
     },
     FixChoice {
-        code: "workspace-dependencies",
+        group: FacadeFixGroup::WorkspaceDependencies,
         label: "Workspace dependencies",
         description: "child dependency versions and paths",
     },
     FixChoice {
-        code: "package-metadata",
+        group: FacadeFixGroup::PackageMetadata,
         label: "Package metadata",
         description: "inherited fields, documentation, and package lints",
     },
@@ -37,7 +37,7 @@ const FIX_CHOICES: &[FixChoice] = &[
 
 #[derive(Clone, Copy, Debug)]
 struct FixChoice {
-    code: &'static str,
+    group: FacadeFixGroup,
     label: &'static str,
     description: &'static str,
 }
@@ -59,16 +59,16 @@ pub struct DevFixArgs {
     #[arg(long, conflicts_with = "codes")]
     pub all: bool,
 
-    /// Restrict repairs to a rule or repair group.
+    /// Restrict repairs to an issue code or repair group.
     ///
     /// May be supplied multiple times. When neither `--code` nor `--all`
-    /// is supplied, an interactive rule selector is shown.
+    /// is supplied, an interactive repair-group selector is shown.
     #[arg(
         long = "code",
         value_name = "CODE",
         action = ArgAction::Append
     )]
-    pub codes: Vec<String>,
+    pub codes: Vec<FacadeFixTarget>,
 
     /// Write the planned repairs.
     ///
@@ -78,7 +78,7 @@ pub struct DevFixArgs {
 }
 
 pub fn run(args: DevFixArgs, output: Output) -> Result<()> {
-    let codes = resolve_codes(&args)?;
+    let targets = resolve_targets(&args)?;
 
     let mode = if args.write {
         FixMode::Write
@@ -86,10 +86,10 @@ pub fn run(args: DevFixArgs, output: Output) -> Result<()> {
         FixMode::DryRun
     };
 
-    let options = codes
+    let options = targets
         .into_iter()
-        .fold(FacadeFixOptions::new(mode), |options, code| {
-            options.with_code(code)
+        .fold(FacadeFixOptions::new(mode), |options, target| {
+            options.with_target(target)
         });
 
     fix::run(&args.path, options, output)?;
@@ -97,19 +97,31 @@ pub fn run(args: DevFixArgs, output: Output) -> Result<()> {
     Ok(())
 }
 
-fn resolve_codes(args: &DevFixArgs) -> Result<Vec<String>> {
+fn resolve_targets(args: &DevFixArgs) -> Result<Vec<FacadeFixTarget>> {
     if args.all {
-        return Ok(vec!["all".to_owned()]);
+        return Ok(Vec::new());
     }
 
     if !args.codes.is_empty() {
-        return validate_codes(&args.codes);
+        return Ok(deduplicate_targets(&args.codes));
     }
 
-    select_codes_interactively()
+    select_targets_interactively()
 }
 
-fn select_codes_interactively() -> Result<Vec<String>> {
+fn deduplicate_targets(targets: &[FacadeFixTarget]) -> Vec<FacadeFixTarget> {
+    let mut unique = Vec::with_capacity(targets.len());
+
+    for &target in targets {
+        if !unique.contains(&target) {
+            unique.push(target);
+        }
+    }
+
+    unique
+}
+
+pub(crate) fn select_targets_interactively() -> Result<Vec<FacadeFixTarget>> {
     if !std::io::stdin().is_terminal() {
         bail!(
             "`rustuse dev fix` requires an interactive terminal when no \
@@ -133,50 +145,14 @@ fn select_codes_interactively() -> Result<Vec<String>> {
         bail!("no facade fix rules were selected");
     }
 
-    Ok(selected
+    selected
         .into_iter()
-        .map(|index| FIX_CHOICES[index].code.to_owned())
-        .collect())
-}
+        .map(|index| {
+            let choice = FIX_CHOICES
+                .get(index)
+                .context("interactive facade fix selection was out of bounds")?;
 
-fn validate_codes(codes: &[String]) -> Result<Vec<String>> {
-    let mut validated = Vec::with_capacity(codes.len());
-
-    for code in codes {
-        let code = code.trim();
-
-        if code.is_empty() {
-            bail!("facade fix code cannot be empty");
-        }
-
-        if code == "all" {
-            bail!("use `--all` instead of `--code all`");
-        }
-
-        if !is_supported_code(code) {
-            bail!(
-                "unknown facade fix rule or group `{code}`; \
-                 supported groups: {}",
-                supported_codes()
-            );
-        }
-
-        if !validated.iter().any(|existing| existing == code) {
-            validated.push(code.to_owned());
-        }
-    }
-
-    Ok(validated)
-}
-
-fn is_supported_code(code: &str) -> bool {
-    FIX_CHOICES.iter().any(|choice| choice.code == code)
-}
-
-fn supported_codes() -> String {
-    FIX_CHOICES
-        .iter()
-        .map(|choice| choice.code)
-        .collect::<Vec<_>>()
-        .join(", ")
+            Ok(FacadeFixTarget::Group(choice.group))
+        })
+        .collect()
 }

@@ -37,25 +37,6 @@ impl DevMenuAction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum FixScopeAction {
-    All,
-    Selected,
-    Back,
-}
-
-impl FixScopeAction {
-    const ALL: [Self; 3] = [Self::All, Self::Selected, Self::Back];
-
-    const fn label(self) -> &'static str {
-        match self {
-            Self::All => "Fix all detected issues",
-            Self::Selected => "Fix selected issue codes",
-            Self::Back => "Back",
-        }
-    }
-}
-
 pub(crate) fn run(output: Output, context: DevCommandContext) -> Result<()> {
     validate_interactive_mode(
         context.non_interactive,
@@ -138,57 +119,18 @@ fn run_inspect(output: Output) -> Result<()> {
 
 fn run_fix(output: Output) -> Result<()> {
     let path = prompt_path("Path to fix", ".")?;
-    let scope = prompt_fix_scope_action()?;
-
-    let (all, codes) = match scope {
-        FixScopeAction::All => (true, Vec::new()),
-        FixScopeAction::Selected => (false, prompt_issue_codes()?),
-        FixScopeAction::Back => return Ok(()),
-    };
-
+    let targets = fix::select_targets_interactively()?;
     let write = prompt_confirm("Write changes?", false)?;
 
     fix::run(
         DevFixArgs {
             path,
-            all,
-            codes,
+            all: false,
+            codes: targets,
             write,
         },
         output,
     )
-}
-
-fn prompt_fix_scope_action() -> Result<FixScopeAction> {
-    let actions = FixScopeAction::ALL;
-    let labels = actions.map(FixScopeAction::label);
-    let selected = prompt_select("Which issues do you want to fix?", &labels, 0)?;
-
-    Ok(actions[selected])
-}
-
-fn prompt_issue_codes() -> Result<Vec<String>> {
-    let value = Input::<String>::with_theme(&ColorfulTheme::default())
-        .with_prompt("Issue codes, separated by commas")
-        .validate_with(|value: &String| {
-            if parse_issue_codes(value).is_empty() {
-                Err("at least one issue code is required")
-            } else {
-                Ok(())
-            }
-        })
-        .interact_text()?;
-
-    Ok(parse_issue_codes(&value))
-}
-
-fn parse_issue_codes(value: &str) -> Vec<String> {
-    value
-        .split(',')
-        .map(str::trim)
-        .filter(|code| !code.is_empty())
-        .map(str::to_owned)
-        .collect()
 }
 
 fn prompt_path(prompt: &str, default: &str) -> Result<PathBuf> {
@@ -219,7 +161,7 @@ fn prompt_select(prompt: &str, items: &[&str], default: usize) -> Result<usize> 
 mod tests {
     use std::collections::HashSet;
 
-    use super::{DevMenuAction, FixScopeAction, parse_issue_codes, validate_interactive_mode};
+    use super::{DevMenuAction, validate_interactive_mode};
 
     #[test]
     fn dev_menu_labels_are_non_empty_and_unique() {
@@ -228,20 +170,10 @@ mod tests {
     }
 
     #[test]
-    fn fix_scope_labels_are_non_empty_and_unique() {
-        let labels = FixScopeAction::ALL.map(FixScopeAction::label);
-        assert_labels_are_valid(&labels);
-    }
-
-    #[test]
     fn navigation_actions_are_last() {
         assert_eq!(
             DevMenuAction::ALL.last().copied(),
             Some(DevMenuAction::Exit)
-        );
-        assert_eq!(
-            FixScopeAction::ALL.last().copied(),
-            Some(FixScopeAction::Back)
         );
     }
 
@@ -268,27 +200,6 @@ mod tests {
     #[test]
     fn interactive_mode_rejects_non_terminal_input() {
         assert!(validate_interactive_mode(false, false, false, false).is_err());
-    }
-
-    #[test]
-    fn issue_codes_are_split_and_trimmed() {
-        assert_eq!(
-            parse_issue_codes("missing-workspace, invalid-feature,package-field"),
-            vec!["missing-workspace", "invalid-feature", "package-field",]
-        );
-    }
-
-    #[test]
-    fn empty_issue_codes_are_ignored() {
-        assert_eq!(
-            parse_issue_codes("missing-workspace, , invalid-feature,"),
-            vec!["missing-workspace", "invalid-feature"]
-        );
-    }
-
-    #[test]
-    fn blank_issue_code_input_produces_no_codes() {
-        assert!(parse_issue_codes(" , , ").is_empty());
     }
 
     fn assert_labels_are_valid(labels: &[&str]) {

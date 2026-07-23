@@ -1,5 +1,13 @@
 # RustUse CLI
 
+[![Crates.io](https://img.shields.io/crates/v/rustuse-cli.svg)](https://crates.io/crates/rustuse-cli)
+[![Documentation](https://docs.rs/rustuse-cli/badge.svg)](https://docs.rs/rustuse-cli)
+[![CI](https://github.com/RustUse/cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RustUse/cli/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/RustUse/cli/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/RustUse/cli/actions/workflows/codeql.yml)
+[![Trivy](https://github.com/RustUse/cli/actions/workflows/trivy.yml/badge.svg?branch=main)](https://github.com/RustUse/cli/actions/workflows/trivy.yml)
+[![MSRV](https://img.shields.io/badge/MSRV-1.95.0-blue.svg)](https://www.rust-lang.org)
+[![License](https://img.shields.io/crates/l/rustuse-cli.svg)](https://github.com/RustUse/cli#license)
+
 `rustuse` is the command-line tool for discovering, adopting, inspecting, validating, and maintaining RustUse crates and repositories.
 
 RustUse focuses on small, composable Rust crates. The CLI helps Rust users find and adopt those crates through Cargo, while providing RustUse maintainers with repository inspection, reporting, repair, and CI workflows.

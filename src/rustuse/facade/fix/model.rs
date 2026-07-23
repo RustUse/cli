@@ -1,6 +1,81 @@
 //! Data models used by facade repair planning and application.
 
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
+
+use crate::rustuse::facade::codes::FacadeIssueCode;
+
+/// A supported group of facade manifest repairs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FacadeFixGroup {
+    FacadeWiring,
+    WorkspaceShape,
+    WorkspaceDependencies,
+    PackageMetadata,
+}
+
+impl FacadeFixGroup {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::FacadeWiring => "facade-wiring",
+            Self::WorkspaceShape => "workspace-shape",
+            Self::WorkspaceDependencies => "workspace-dependencies",
+            Self::PackageMetadata => "package-metadata",
+        }
+    }
+}
+
+impl fmt::Display for FacadeFixGroup {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for FacadeFixGroup {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "facade-wiring" => Ok(Self::FacadeWiring),
+            "workspace-shape" => Ok(Self::WorkspaceShape),
+            "workspace-dependencies" => Ok(Self::WorkspaceDependencies),
+            "package-metadata" => Ok(Self::PackageMetadata),
+            _ => Err(()),
+        }
+    }
+}
+
+/// A diagnostic issue or repair group selected for facade repair.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FacadeFixTarget {
+    Issue(FacadeIssueCode),
+    Group(FacadeFixGroup),
+}
+
+impl FromStr for FacadeFixTarget {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value.trim();
+
+        if value.is_empty() {
+            return Err("facade fix code cannot be empty".to_owned());
+        }
+
+        if value == "all" {
+            return Err("use `--all` instead of `--code all`".to_owned());
+        }
+
+        if let Ok(group) = value.parse::<FacadeFixGroup>() {
+            return Ok(Self::Group(group));
+        }
+
+        FacadeIssueCode::from_id(value)
+            .map(Self::Issue)
+            .ok_or_else(|| format!("unknown facade fix issue code or group `{value}`"))
+    }
+}
 
 /// Controls whether a facade repair plan is previewed or written.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -29,10 +104,10 @@ impl FixMode {
 /// Options controlling repairs for one facade repository.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct FacadeFixOptions {
-    /// Optional diagnostic code or repair group to target.
+    /// Issue codes or repair groups to target.
     ///
-    /// When absent, all supported facade repairs are planned.
-    pub(crate) codes: Vec<String>,
+    /// When empty, every supported facade repair is planned.
+    pub(crate) targets: Vec<FacadeFixTarget>,
 
     /// Whether to preview or apply the planned changes.
     pub(crate) mode: FixMode,
@@ -41,13 +116,17 @@ pub(crate) struct FacadeFixOptions {
 impl FacadeFixOptions {
     pub(crate) const fn new(mode: FixMode) -> Self {
         Self {
-            codes: Vec::new(),
+            targets: Vec::new(),
             mode,
         }
     }
 
-    pub(crate) fn with_code(mut self, code: impl Into<String>) -> Self {
-        self.codes.push(code.into());
+    #[must_use]
+    pub(crate) fn with_target(mut self, target: FacadeFixTarget) -> Self {
+        if !self.targets.contains(&target) {
+            self.targets.push(target);
+        }
+
         self
     }
 }
@@ -137,4 +216,81 @@ pub(crate) struct FacadeFixChange {
     ///
     /// This is `false` during a dry run.
     pub(crate) wrote: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::{FacadeFixGroup, FacadeFixOptions, FacadeFixTarget, FixMode};
+    use crate::rustuse::facade::codes::FacadeIssueCode;
+
+    #[test]
+    fn parses_fix_group() {
+        assert_eq!(
+            FacadeFixTarget::from_str("workspace-shape"),
+            Ok(FacadeFixTarget::Group(FacadeFixGroup::WorkspaceShape))
+        );
+    }
+
+    #[test]
+    fn parses_issue_code() {
+        assert_eq!(
+            FacadeFixTarget::from_str("missing-workspace-members"),
+            Ok(FacadeFixTarget::Issue(
+                FacadeIssueCode::MissingWorkspaceMembers
+            ))
+        );
+    }
+
+    #[test]
+    fn trims_fix_target_input() {
+        assert_eq!(
+            FacadeFixTarget::from_str("  package-metadata  "),
+            Ok(FacadeFixTarget::Group(FacadeFixGroup::PackageMetadata))
+        );
+    }
+
+    #[test]
+    fn rejects_empty_fix_target() {
+        assert_eq!(
+            FacadeFixTarget::from_str("   "),
+            Err("facade fix code cannot be empty".to_owned())
+        );
+    }
+
+    #[test]
+    fn rejects_all_as_a_code() {
+        assert_eq!(
+            FacadeFixTarget::from_str("all"),
+            Err("use `--all` instead of `--code all`".to_owned())
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_fix_target() {
+        assert_eq!(
+            FacadeFixTarget::from_str("unknown-target"),
+            Err("unknown facade fix issue code or group `unknown-target`".to_owned())
+        );
+    }
+
+    #[test]
+    fn with_target_ignores_duplicates() {
+        let target = FacadeFixTarget::Group(FacadeFixGroup::FacadeWiring);
+
+        let options = FacadeFixOptions::new(FixMode::DryRun)
+            .with_target(target)
+            .with_target(target);
+
+        assert_eq!(options.targets, vec![target]);
+    }
+
+    #[test]
+    fn fix_group_display_uses_canonical_id() {
+        assert_eq!(
+            FacadeFixGroup::WorkspaceDependencies.to_string(),
+            "workspace-dependencies"
+        );
+    }
 }

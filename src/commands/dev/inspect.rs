@@ -22,7 +22,5 @@ pub(crate) fn run(args: DevInspectArgs, output: Output) -> Result<()> {
         diagnostics.warning_count()
     );
 
-    output.record("dev inspect", diagnostics.status(), &summary);
-
-    Ok(())
+    output.record("dev inspect", diagnostics.status(), &summary)
 }

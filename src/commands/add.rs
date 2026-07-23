@@ -59,7 +59,5 @@ pub fn run(args: AddArgs, output: Output) -> Result<()> {
         result.dry_run
     );
 
-    output.record("add", result.status(), &message);
-
-    Ok(())
+    output.record("add", result.status(), &message)
 }

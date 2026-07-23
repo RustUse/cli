@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::Args;
+use serde::Serialize;
 
 use crate::{output::Output, rustuse::catalog};
 
@@ -13,29 +14,62 @@ pub struct InfoArgs {
     pub name: NamedCommandArgs,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum InfoStatus {
+    Ok,
+    Missing,
+}
+
+#[derive(Debug, Serialize)]
+struct InfoResponse {
+    command: &'static str,
+    status: InfoStatus,
+    query: String,
+    entry: Option<InfoEntry>,
+}
+
+#[derive(Debug, Serialize)]
+struct InfoEntry {
+    name: String,
+    kind: String,
+    facade: String,
+    docs_url: String,
+}
+
 pub fn run(args: InfoArgs, output: Output) -> Result<()> {
-    let Some(entry) = catalog::find_by_name(&args.name.name) else {
-        let message = format!("No RustUse entry found for `{}`.", args.name.name);
-        output.record("info", "missing", &message);
-        return Ok(());
+    let entry = catalog::find_by_name(&args.name.name).map(|entry| InfoEntry {
+        name: entry.name.to_string(),
+        kind: entry.kind.to_string(),
+        facade: entry.set.to_string(),
+        docs_url: entry.docs_url.to_string(),
+    });
+
+    let response = InfoResponse {
+        command: "info",
+        status: if entry.is_some() {
+            InfoStatus::Ok
+        } else {
+            InfoStatus::Missing
+        },
+        query: args.name.name,
+        entry,
     };
 
+    render(&output, &response)
+}
+
+fn render(output: &Output, response: &InfoResponse) -> Result<()> {
     if output.is_json() {
-        output.record(
-            "info",
-            "entry",
-            &format!(
-                "name={}, kind={}, set={}, docs={}",
-                entry.name, entry.kind, entry.set, entry.docs_url
-            ),
-        );
-        return Ok(());
+        return output.json(response);
     }
 
-    output.line(&entry.name);
-    output.line(format!("kind: {}", entry.kind));
-    output.line(format!("set: {}", entry.set));
-    output.line(format!("docs: {}", entry.docs_url));
+    let Some(entry) = &response.entry else {
+        return output.line(format!("No RustUse entry found for `{}`.", response.query));
+    };
 
-    Ok(())
+    output.line(&entry.name)?;
+    output.line(format!("kind: {}", entry.kind))?;
+    output.line(format!("facade: {}", entry.facade))?;
+    output.line(format!("docs: {}", entry.docs_url))
 }

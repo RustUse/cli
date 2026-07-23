@@ -10,8 +10,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+use super::super::codes::FacadeIssueCode;
 use super::manifest::{self, FacadeManifestRepairs};
-use super::model::{FacadeFixOptions, FacadeFixPlan, PlannedFileChange};
+use super::model::{
+    FacadeFixGroup, FacadeFixOptions, FacadeFixPlan, FacadeFixTarget, PlannedFileChange,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ManifestFixGroup {
@@ -23,63 +26,59 @@ enum ManifestFixGroup {
 }
 
 impl ManifestFixGroup {
-    fn from_code(code: &str) -> Result<Self> {
+    fn from_issue_code(code: FacadeIssueCode) -> Result<Self> {
         match code {
-            "all" => Ok(Self::All),
+            FacadeIssueCode::MissingFacadeDependencies
+            | FacadeIssueCode::MissingFacadeChildDependency
+            | FacadeIssueCode::InvalidFacadeChildDependency
+            | FacadeIssueCode::MissingFacadeChildDependencyOptional
+            | FacadeIssueCode::MissingFacadeFeatures
+            | FacadeIssueCode::InvalidFacadeDefaultFeatures
+            | FacadeIssueCode::MissingFacadeDefaultFeatures
+            | FacadeIssueCode::MissingFacadeFullFeature
+            | FacadeIssueCode::MissingFullFeatureMember
+            | FacadeIssueCode::MissingFacadeChildFeature
+            | FacadeIssueCode::InvalidFacadeChildFeature => Ok(Self::FacadeWiring),
 
-            "facade-wiring"
-            | "missing-facade-dependencies"
-            | "missing-facade-child-dependency"
-            | "invalid-facade-child-dependency"
-            | "missing-facade-child-dependency-optional"
-            | "missing-facade-features"
-            | "invalid-facade-default-features"
-            | "missing-facade-default-features"
-            | "missing-facade-full-feature"
-            | "missing-full-feature-member"
-            | "missing-facade-child-feature"
-            | "invalid-facade-child-feature" => Ok(Self::FacadeWiring),
+            FacadeIssueCode::MissingStandardWorkspaceMember
+            | FacadeIssueCode::NonStandardWorkspaceMembers
+            | FacadeIssueCode::MissingWorkspace
+            | FacadeIssueCode::MissingWorkspaceMembers
+            | FacadeIssueCode::InvalidWorkspaceMembers
+            | FacadeIssueCode::MissingWorkspaceResolver
+            | FacadeIssueCode::InvalidWorkspaceResolver
+            | FacadeIssueCode::MissingWorkspacePackage
+            | FacadeIssueCode::MissingWorkspacePackageField
+            | FacadeIssueCode::InvalidWorkspaceRepository
+            | FacadeIssueCode::MissingWorkspaceCategories
+            | FacadeIssueCode::MissingWorkspaceUnsafeCodePolicy
+            | FacadeIssueCode::InvalidWorkspaceUnsafeCodePolicy
+            | FacadeIssueCode::MissingWorkspaceClippyLints => Ok(Self::WorkspaceShape),
 
-            "workspace-shape"
-            | "missing-standard-workspace-member"
-            | "non-standard-workspace-members"
-            | "missing-workspace"
-            | "missing-workspace-members"
-            | "invalid-workspace-members"
-            | "missing-workspace-resolver"
-            | "workspace-resolver"
-            | "missing-workspace-package"
-            | "missing-workspace-package-field"
-            | "invalid-workspace-repository"
-            | "missing-workspace-categories"
-            | "missing-workspace-unsafe-code-policy"
-            | "invalid-workspace-unsafe-code-policy"
-            | "missing-workspace-clippy-lints" => Ok(Self::WorkspaceShape),
+            FacadeIssueCode::MissingWorkspaceDependencies
+            | FacadeIssueCode::MissingWorkspaceDependency
+            | FacadeIssueCode::InvalidWorkspaceDependencyShape
+            | FacadeIssueCode::InvalidWorkspaceDependencyPath
+            | FacadeIssueCode::MissingWorkspaceDependencyPath
+            | FacadeIssueCode::MissingWorkspaceDependencyVersion => Ok(Self::WorkspaceDependencies),
 
-            "workspace-dependencies"
-            | "missing-workspace-dependencies"
-            | "missing-workspace-dependency"
-            | "invalid-workspace-dependency"
-            | "invalid-workspace-dependency-path"
-            | "missing-workspace-dependency-path"
-            | "missing-workspace-dependency-version" => Ok(Self::WorkspaceDependencies),
+            FacadeIssueCode::MissingPackageField
+            | FacadeIssueCode::InvalidPackagePublish
+            | FacadeIssueCode::MissingPackagePublish
+            | FacadeIssueCode::MissingPackageCategories
+            | FacadeIssueCode::MissingInheritedCategories
+            | FacadeIssueCode::MissingPackageInheritedField
+            | FacadeIssueCode::PackageFieldNotInherited
+            | FacadeIssueCode::InvalidPackageHomepage
+            | FacadeIssueCode::InvalidPackageDocumentation
+            | FacadeIssueCode::MissingPackageReadmeFile
+            | FacadeIssueCode::MissingDocsRsAllFeatures
+            | FacadeIssueCode::InvalidDocsRsAllFeatures
+            | FacadeIssueCode::MissingLintsWorkspace => Ok(Self::PackageMetadata),
 
-            "package-metadata"
-            | "missing-package-field"
-            | "missing-package-publish"
-            | "package-publish"
-            | "missing-package-categories"
-            | "missing-inherited-categories"
-            | "missing-package-inherited-field"
-            | "package-field-not-inherited"
-            | "invalid-package-homepage"
-            | "invalid-package-documentation"
-            | "missing-package-readme-file"
-            | "missing-docs-rs-all-features"
-            | "invalid-docs-rs-all-features"
-            | "missing-lints-workspace" => Ok(Self::PackageMetadata),
-
-            other => bail!("unknown manifest fix code or group `{other}`"),
+            other => {
+                bail!("facade issue code `{other}` does not have a supported manifest repair")
+            },
         }
     }
 
@@ -97,6 +96,17 @@ impl ManifestFixGroup {
     }
 }
 
+impl From<FacadeFixGroup> for ManifestFixGroup {
+    fn from(group: FacadeFixGroup) -> Self {
+        match group {
+            FacadeFixGroup::FacadeWiring => Self::FacadeWiring,
+            FacadeFixGroup::WorkspaceShape => Self::WorkspaceShape,
+            FacadeFixGroup::WorkspaceDependencies => Self::WorkspaceDependencies,
+            FacadeFixGroup::PackageMetadata => Self::PackageMetadata,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ManifestFixSelection {
     repairs: FacadeManifestRepairs,
@@ -104,15 +114,20 @@ struct ManifestFixSelection {
 }
 
 impl ManifestFixSelection {
-    fn from_codes(codes: &[String]) -> Result<Self> {
-        if codes.is_empty() {
+    fn from_targets(targets: &[FacadeFixTarget]) -> Result<Self> {
+        if targets.is_empty() {
             return Ok(Self::from_group(ManifestFixGroup::All));
         }
 
         let mut selection = Self::default();
 
-        for code in codes {
-            selection.include(ManifestFixGroup::from_code(code)?);
+        for &target in targets {
+            let group = match target {
+                FacadeFixTarget::Issue(code) => ManifestFixGroup::from_issue_code(code)?,
+                FacadeFixTarget::Group(group) => group.into(),
+            };
+
+            selection.include(group);
         }
 
         Ok(selection)
@@ -144,7 +159,7 @@ impl ManifestFixSelection {
 pub(crate) fn build_plan(root: &Path, options: &FacadeFixOptions) -> Result<FacadeFixPlan> {
     let root = canonical_facade_root(root)?;
     let facade_name = facade_name(&root)?;
-    let selection = ManifestFixSelection::from_codes(&options.codes)?;
+    let selection = ManifestFixSelection::from_targets(&options.targets)?;
 
     let child_crates = manifest::discover_child_crates(&root.join("crates"), &facade_name)?;
 

@@ -11,6 +11,7 @@ pub mod inspect;
 pub mod interactive;
 pub mod new;
 pub mod report;
+pub mod setup;
 
 #[derive(Debug, Args)]
 pub struct DevArgs {
@@ -34,6 +35,9 @@ pub enum DevCommands {
 
     /// Generate a RustUse development report.
     Report(report::DevReportArgs),
+
+    /// Setup RustUse maintainer workspace.
+    Setup(setup::DevSetupArgs),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -61,5 +65,6 @@ fn run_command(command: DevCommands, output: Output, context: DevCommandContext)
         DevCommands::Inspect(args) => inspect::run(args, output),
         DevCommands::New(args) => new::run(args, output),
         DevCommands::Report(args) => report::run(args, output, context),
+        DevCommands::Setup(args) => setup::run(args, output),
     }
 }

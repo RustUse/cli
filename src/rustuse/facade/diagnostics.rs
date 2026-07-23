@@ -10,7 +10,8 @@ use crate::rustuse::facade::inspect::{FacadeRepositoryReport, inspect_facade_rep
 use crate::rustuse::facade::issue::{FacadeFixKind, FacadeIssue, FacadeIssueSeverity};
 use crate::rustuse::facade::layout::MAKEFILE;
 use crate::rustuse::facade::manifest::{
-    FacadeManifestReport, ManifestIssueSeverity, analyze_facade_repository_manifests,
+    FacadeManifestReport, ManifestFileReport, ManifestIssueSeverity,
+    analyze_facade_repository_manifests,
 };
 use crate::rustuse::facade::model::{FacadeCrateInfo, FacadeCrateKind, FacadeStatus};
 use crate::rustuse::facade::non_standard::{
@@ -156,12 +157,9 @@ impl FacadeDiagnostics {
                     prelude_present: crate_info.prelude_present(),
                     documentation_status: crate_info.documentation_status(),
                     documentation_notes: crate_info.documentation_notes(),
-                    manifest_status: manifest_report
-                        .map(|manifest| manifest.status())
-                        .unwrap_or("unknown"),
+                    manifest_status: manifest_report.map_or("unknown", ManifestFileReport::status),
                     manifest_issue_count: manifest_report
-                        .map(|manifest| manifest.issue_count())
-                        .unwrap_or(0),
+                        .map_or(0, ManifestFileReport::issue_count),
                 }
             })
             .collect()

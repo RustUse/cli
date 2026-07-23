@@ -1,8 +1,9 @@
 //! Markdown report generation for one RustUse facade repository.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use serde::Serialize;
 
 use crate::output::Output;
 use crate::rustuse::facade::diagnostics::FacadeDiagnostics;
@@ -23,6 +24,16 @@ mod shape;
 mod summary;
 mod tooling;
 
+#[derive(Debug, Serialize)]
+struct FacadeReportResponse {
+    command: &'static str,
+    status: String,
+    root: PathBuf,
+    output: PathBuf,
+    errors: usize,
+    warnings: usize,
+}
+
 pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()> {
     let diagnostics = FacadeDiagnostics::inspect(root)?;
     let report = build_report(&diagnostics);
@@ -30,21 +41,31 @@ pub(crate) fn generate_markdown_report(root: &Path, output: Output) -> Result<()
 
     write_markdown_report(&output_path, &report)?;
 
+    let response = FacadeReportResponse {
+        command: "facade report",
+        status: diagnostics.status().to_owned(),
+        root: diagnostics.facade.root.clone(),
+        output: output_path,
+        errors: diagnostics.error_count(),
+        warnings: diagnostics.warning_count(),
+    };
+
+    render(&output, &response)
+}
+
+fn render(output: &Output, response: &FacadeReportResponse) -> Result<()> {
     if output.is_json() {
-        output.record(
-            "facade report",
-            diagnostics.status(),
-            &format!("wrote {}", output_path.display()),
-        );
-    } else {
-        output.line(format!(
-            "RustUse facade report - root: {}",
-            diagnostics.facade.root.display()
-        ));
-        output.line(format!("wrote: {}", output_path.display()));
+        return output.json(response);
     }
 
-    Ok(())
+    output.line(format!(
+        "RustUse facade report - root: {}",
+        response.root.display()
+    ))?;
+    output.line(format!("status: {}", response.status))?;
+    output.line(format!("errors: {}", response.errors))?;
+    output.line(format!("warnings: {}", response.warnings))?;
+    output.line(format!("wrote: {}", response.output.display()))
 }
 
 fn build_report(diagnostics: &FacadeDiagnostics) -> String {

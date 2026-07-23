@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Args;
+use serde::Serialize;
 
 use crate::output::Output;
 use crate::rustuse::{
@@ -30,6 +31,44 @@ pub struct InitArgs {
     pub force: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum InitStatus {
+    Exists,
+    Planned,
+    Ok,
+}
+
+#[derive(Debug, Serialize)]
+struct InitResponse {
+    command: &'static str,
+    status: InitStatus,
+    dry_run: bool,
+    force: bool,
+    paths: InitPaths,
+    detected: InitDetected,
+    project: InitProject,
+}
+
+#[derive(Debug, Serialize)]
+struct InitPaths {
+    config: PathBuf,
+    cache: PathBuf,
+    snapshots: PathBuf,
+}
+
+#[derive(Debug, Serialize)]
+struct InitDetected {
+    cargo_toml: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct InitProject {
+    name: String,
+    kind: String,
+    default_adoption: String,
+}
+
 pub fn run(args: InitArgs, output: Output) -> Result<()> {
     let root = std::fs::canonicalize(&args.path)
         .with_context(|| format!("failed to resolve `{}`", args.path.display()))?;
@@ -39,20 +78,17 @@ pub fn run(args: InitArgs, output: Output) -> Result<()> {
     let config = config_for(project_name);
 
     if state.has_config && !args.force {
-        let message = format!(
-            "{} already exists; no changes made",
-            state.config_path.display()
-        );
+        let response = response_for(&state, &config, InitStatus::Exists, false, args.force);
 
-        output.record("init", "exists", &message);
-        return Ok(());
+        return render(&output, &response);
     }
 
     let contents = config::to_toml(&config)?;
 
     if args.dry_run {
-        print_plan(output, &state, &config, true, args.force);
-        return Ok(());
+        let response = response_for(&state, &config, InitStatus::Planned, true, args.force);
+
+        return render(&output, &response);
     }
 
     if args.force {
@@ -65,9 +101,9 @@ pub fn run(args: InitArgs, output: Output) -> Result<()> {
     project::create_tracking_dirs(&root)?;
 
     let state = project::detect(&root);
-    print_plan(output, &state, &config, false, args.force);
+    let response = response_for(&state, &config, InitStatus::Ok, false, args.force);
 
-    Ok(())
+    render(&output, &response)
 }
 
 fn config_for(project_name: String) -> RustUseConfig {
@@ -81,79 +117,101 @@ fn project_name(root: &Path) -> String {
         .to_owned()
 }
 
-fn print_plan(
-    output: Output,
+fn response_for(
     state: &project::ProjectState,
     config: &RustUseConfig,
+    status: InitStatus,
     dry_run: bool,
     force: bool,
-) {
+) -> InitResponse {
+    InitResponse {
+        command: "init",
+        status,
+        dry_run,
+        force,
+        paths: InitPaths {
+            config: state.config_path.clone(),
+            cache: state.cache_dir_path.clone(),
+            snapshots: state.snapshots_dir_path.clone(),
+        },
+        detected: InitDetected {
+            cargo_toml: state.has_cargo_toml,
+        },
+        project: InitProject {
+            name: config.project.name.clone(),
+            kind: config.project.kind.to_string(),
+            default_adoption: config.project.default_adoption.to_string(),
+        },
+    }
+}
+
+fn render(output: &Output, response: &InitResponse) -> Result<()> {
     if output.is_json() {
-        let status = if dry_run { "dry-run" } else { "ok" };
-        let message = format!(
-            "config={}, cache={}, snapshots={}, project={}, kind={}, default_adoption={}, cargo_toml={}, force={}",
-            state.config_path.display(),
-            state.cache_dir_path.display(),
-            state.snapshots_dir_path.display(),
-            config.project.name,
-            config.project.kind,
-            config.project.default_adoption,
-            state.has_cargo_toml,
-            force
-        );
-
-        output.record("init", status, &message);
-        return;
+        return output.json(response);
     }
 
-    if dry_run {
-        output.line("Would initialize RustUse project tracking.");
-    } else if force {
-        output.line("Initialized RustUse project tracking and rewrote rustuse.toml.");
+    match response.status {
+        InitStatus::Exists => {
+            return output.line(format!(
+                "{} already exists; no changes made",
+                response.paths.config.display()
+            ));
+        },
+        InitStatus::Planned => {
+            output.line("Would initialize RustUse project tracking.")?;
+        },
+        InitStatus::Ok if response.force => {
+            output.line("Initialized RustUse project tracking and rewrote rustuse.toml.")?;
+        },
+        InitStatus::Ok => {
+            output.line("Initialized RustUse project tracking.")?;
+        },
+    }
+
+    output.line("")?;
+    output.line(if response.dry_run {
+        "Would create:"
     } else {
-        output.line("Initialized RustUse project tracking.");
-    }
+        "Created:"
+    })?;
+    output.line(format!("  {CONFIG_FILE}"))?;
+    output.line("  .rustuse/cache/")?;
+    output.line("  .rustuse/snapshots/")?;
+    output.line("")?;
 
-    output.line("");
-    output.line(if dry_run { "Would create:" } else { "Created:" });
-    output.line(format!("  {CONFIG_FILE}"));
-    output.line("  .rustuse/cache/");
-    output.line("  .rustuse/snapshots/");
-    output.line("");
+    output.line("Detected:")?;
 
-    output.line("Detected:");
-
-    if state.has_cargo_toml {
-        output.line("  Cargo.toml found");
+    if response.detected.cargo_toml {
+        output.line("  Cargo.toml found")?;
     } else {
-        output.line("  Cargo.toml missing");
+        output.line("  Cargo.toml missing")?;
     }
 
-    output.line("");
+    output.line("")?;
 
-    if !state.has_cargo_toml {
-        output.line("Note:");
+    if !response.detected.cargo_toml {
+        output.line("Note:")?;
         output.line(
             "  No Cargo.toml was found. Cargo mode will work after this directory contains a Rust project.",
-        );
-        output.line("");
+        )?;
+        output.line("")?;
     }
 
-    output.line("Project:");
-    output.line(format!("  name: {}", config.project.name));
-    output.line(format!("  kind: {}", config.project.kind));
+    output.line("Project:")?;
+    output.line(format!("  name: {}", response.project.name))?;
+    output.line(format!("  kind: {}", response.project.kind))?;
     output.line(format!(
         "  default adoption: {}",
-        config.project.default_adoption
-    ));
-    output.line("");
+        response.project.default_adoption
+    ))?;
+    output.line("")?;
 
-    if dry_run {
-        output.line("No changes made because --dry-run was used.");
-        output.line("");
+    if response.dry_run {
+        output.line("No changes made because --dry-run was used.")?;
+        output.line("")?;
     }
 
-    output.line("Next:");
-    output.line("  rustuse search geometry");
-    output.line("  rustuse add use-geometry");
+    output.line("Next:")?;
+    output.line("  rustuse search geometry")?;
+    output.line("  rustuse add use-geometry")
 }

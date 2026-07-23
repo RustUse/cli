@@ -1,22 +1,47 @@
 [package]
 autobins = false
 categories = ["command-line-utilities", "development-tools", "development-tools::cargo-plugins"]
-description = "Command-line tooling for adopting, managing, and maintaining RustUse crates."
+description = "A Cargo subcommand and CLI for adopting, managing, and maintaining RustUse crates."
+documentation = "https://docs.rs/rustuse-cli"
 edition = "2024"
 homepage = "https://rustuse.org/cli"
-keywords = ["cargo-subcommand", "cli", "dependency-manager", "rustuse", "rustuse-cli"]
+include = ["LICENSE*", "README.md", "src/**", "tests/**"]
+keywords = ["cargo-subcommand", "cli", "dependency-manager", "rustuse", "workspace"]
 license = "MIT OR Apache-2.0"
 name = "rustuse-cli"
 publish = ["crates-io"]
+readme = "README.md"
 repository = "https://github.com/RustUse/cli"
 rust-version = "1.95.0"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 
 [workspace]
 resolver = "3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# Strict enforcement groups
+# correctness = { level = "deny", priority = -1 }
+
+# Warning groups
+# cargo = { level = "warn", priority = -1 }
+# complexity = { level = "warn", priority = -1 }
+# nursery = { level = "warn", priority = -1 }
+# pedantic = { level = "warn", priority = -1 }
+# perf = { level = "warn", priority = -1 }
+# style = { level = "warn", priority = -1 }
+# suspicious = { level = "warn", priority = -1 }
+
+# Explicitly kept off (Restriction must always be cherry-picked, never enabled as a whole)
+# restriction = { level = "allow", priority = -1 }
+
+dbg_macro = "warn"
+expect_used = "warn"
+todo = "warn"
+unimplemented = "warn"
+unwrap_used = "warn"
 
 [lints]
 workspace = true

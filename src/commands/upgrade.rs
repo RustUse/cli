@@ -30,6 +30,4 @@ pub(crate) fn run(args: UpgradeArgs, output: Output) -> Result<()> {
             output.record("upgrade", "ok", "RustUse CLI upgraded successfully")
         },
     }
-
-    Ok(())
 }

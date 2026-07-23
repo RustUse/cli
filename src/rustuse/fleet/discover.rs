@@ -1,4 +1,4 @@
-//! Discovery helpers for a local RustUse fleet.
+//! Discovery helpers for a local `RustUse` fleet.
 
 use std::fs;
 use std::path::{Path, PathBuf};

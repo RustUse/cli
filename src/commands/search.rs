@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::Args;
+use serde::Serialize;
 
 use crate::{output::Output, rustuse::catalog};
 
@@ -16,45 +17,81 @@ pub struct SearchArgs {
     pub limit: usize,
 }
 
+#[derive(Debug, Serialize)]
+struct SearchResponse<'a> {
+    command: &'static str,
+    status: &'static str,
+    query: &'a str,
+    total_entries: usize,
+    total_matches: usize,
+    returned: usize,
+    truncated: bool,
+    results: Vec<SearchResult>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchResult {
+    name: String,
+    kind: String,
+    set: String,
+    docs_url: String,
+}
+
 pub fn run(args: SearchArgs, output: Output) -> Result<()> {
     let total_entries = catalog::all_entries().len();
     let matches = catalog::search(&args.query);
-    let limited_matches: Vec<_> = matches.into_iter().take(args.limit).collect();
+    let total_matches = matches.len();
 
-    if limited_matches.is_empty() {
-        let message = format!("No RustUse entries matched `{}`.", args.query);
-        output.record("search", "empty", &message);
-        return Ok(());
-    }
+    let results: Vec<_> = matches
+        .into_iter()
+        .take(args.limit)
+        .map(|entry| SearchResult {
+            name: entry.name.to_string(),
+            kind: entry.kind.to_string(),
+            set: entry.set.to_string(),
+            docs_url: entry.docs_url.to_string(),
+        })
+        .collect();
+
+    let returned = results.len();
+
+    let response = SearchResponse {
+        command: "search",
+        status: if results.is_empty() { "empty" } else { "ok" },
+        query: &args.query,
+        total_entries,
+        total_matches,
+        returned,
+        truncated: total_matches > returned,
+        results,
+    };
 
     if output.is_json() {
-        for entry in limited_matches {
-            let message = format!(
-                "name={}, kind={}, set={}, docs={}",
-                entry.name, entry.kind, entry.set, entry.docs_url
-            );
-            output.record("search", "match", &message);
-        }
-        return Ok(());
+        return output.json(&response);
     }
 
-    output.detail(format!("Searched {total_entries} RustUse entries."));
-    output.line(format!(
-        "Found {} RustUse entr{}:",
-        limited_matches.len(),
-        plural_y(limited_matches.len())
-    ));
+    output.detail(format!("Searched {total_entries} RustUse entries."))?;
 
-    for entry in limited_matches {
+    if response.results.is_empty() {
+        return output.line(format!("No RustUse entries matched `{}`.", response.query));
+    }
+
+    output.line(format!(
+        "Found {} RustUse {}:",
+        response.returned,
+        entry_label(response.returned)
+    ))?;
+
+    for entry in response.results {
         output.line(format!(
             "- {} ({}, {}) - {}",
             entry.name, entry.kind, entry.set, entry.docs_url
-        ));
+        ))?;
     }
 
     Ok(())
 }
 
-fn plural_y(count: usize) -> &'static str {
-    if count == 1 { "y" } else { "ies" }
+const fn entry_label(count: usize) -> &'static str {
+    if count == 1 { "entry" } else { "entries" }
 }

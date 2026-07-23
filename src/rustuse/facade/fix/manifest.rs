@@ -422,6 +422,7 @@ fn render_manifest(manifest_path: &Path, manifest: &toml::Value) -> Result<Strin
     Ok(rendered)
 }
 
+#[allow(clippy::expect_used)]
 fn ensure_table<'a>(table: &'a mut toml::Table, key: &str) -> &'a mut toml::Table {
     let is_table = table.get(key).and_then(toml::Value::as_table).is_some();
 

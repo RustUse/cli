@@ -1,4 +1,4 @@
-//! Shared tooling configuration surface checks for RustUse repositories.
+//! Shared tooling configuration surface checks for `RustUse` repositories.
 
 use std::path::Path;
 

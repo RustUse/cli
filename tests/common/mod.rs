@@ -4,6 +4,7 @@
 //! temporary project fixtures. Not every test binary uses every helper, so
 //! dead-code is allowed within this shared module only.
 #![allow(dead_code)]
+#![allow(clippy::expect_used)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -128,7 +129,7 @@ impl TempProject {
         project
     }
 
-    /// Creates a temporary RustUse root containing one `use-<name>` facade.
+    /// Creates a temporary `RustUse` root containing one `use-<name>` facade.
     pub fn root_with_facade(name: &str) -> Self {
         let project = Self::new();
         let facade = format!("use-{name}");
