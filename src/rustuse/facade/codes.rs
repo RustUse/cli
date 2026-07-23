@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum FacadeIssueBucket {
@@ -53,6 +54,15 @@ macro_rules! define_facade_issue_codes {
                     $(
                         Self::$variant => $id,
                     )+
+                }
+            }
+
+            pub(crate) fn from_id(id: &str) -> Option<Self> {
+                match id {
+                    $(
+                        $id => Some(Self::$variant),
+                    )+
+                    _ => None,
                 }
             }
 
@@ -345,55 +355,78 @@ define_facade_issue_codes! {
     };
 
     MissingWorkspaceManifest => {
-    id: "missing-workspace-manifest",
-    bucket: WorkspaceShape,
-};
+        id: "missing-workspace-manifest",
+        bucket: WorkspaceShape,
+    };
 
-ReadManifest => {
-    id: "read-manifest",
-    bucket: PackageShape,
-};
-ParseManifest => {
-    id: "parse-manifest",
-    bucket: PackageShape,
-};
-InvalidManifest => {
-    id: "invalid-manifest",
-    bucket: PackageShape,
-};
+    ReadManifest => {
+        id: "read-manifest",
+        bucket: PackageShape,
+    };
+    ParseManifest => {
+        id: "parse-manifest",
+        bucket: PackageShape,
+    };
+    InvalidManifest => {
+        id: "invalid-manifest",
+        bucket: PackageShape,
+    };
 
-MissingPackage => {
-    id: "missing-package",
-    bucket: PackageShape,
-};
-MissingPackageField => {
-    id: "missing-package-field",
-    bucket: PackageShape,
-};
-InvalidPackageName => {
-    id: "invalid-package-name",
-    bucket: PackageShape,
-};
-InvalidPackageVersion => {
-    id: "invalid-package-version",
-    bucket: PackageShape,
-};
-InvalidPackagePublish => {
-    id: "invalid-package-publish",
-    bucket: PackageShape,
-};
-MissingPackagePublish => {
-    id: "missing-package-publish",
-    bucket: PackageShape,
-};
-MissingPackageInheritedField => {
-    id: "missing-package-inherited-field",
-    bucket: PackageShape,
-};
-PackageFieldNotInherited => {
-    id: "package-field-not-inherited",
-    bucket: PackageShape,
-};
+    MissingPackage => {
+        id: "missing-package",
+        bucket: PackageShape,
+    };
+    MissingPackageField => {
+        id: "missing-package-field",
+        bucket: PackageShape,
+    };
+    InvalidPackageName => {
+        id: "invalid-package-name",
+        bucket: PackageShape,
+    };
+    InvalidPackageVersion => {
+        id: "invalid-package-version",
+        bucket: PackageShape,
+    };
+    InvalidPackagePublish => {
+        id: "invalid-package-publish",
+        bucket: PackageShape,
+    };
+    MissingPackagePublish => {
+        id: "missing-package-publish",
+        bucket: PackageShape,
+    };
+    MissingPackageInheritedField => {
+        id: "missing-package-inherited-field",
+        bucket: PackageShape,
+    };
+    PackageFieldNotInherited => {
+        id: "package-field-not-inherited",
+        bucket: PackageShape,
+    };
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ParseFacadeIssueCodeError {
+    value: String,
+}
+
+impl fmt::Display for ParseFacadeIssueCodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "unknown facade issue code: {}", self.value)
+    }
+}
+
+impl std::error::Error for ParseFacadeIssueCodeError {}
+
+impl FromStr for FacadeIssueCode {
+    type Err = ParseFacadeIssueCodeError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_id(value).ok_or_else(|| ParseFacadeIssueCodeError {
+            value: value.to_owned(),
+        })
+    }
 }
 
 #[cfg(test)]

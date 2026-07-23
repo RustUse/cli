@@ -16,7 +16,9 @@ mod model;
 mod plan;
 mod render;
 
-pub(crate) use model::{FacadeFixOptions, FacadeFixSummary, FixMode};
+pub(crate) use model::{
+    FacadeFixGroup, FacadeFixOptions, FacadeFixSummary, FacadeFixTarget, FixMode,
+};
 
 /// Plans and applies repairs for one RustUse facade repository.
 ///
